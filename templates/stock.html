@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>库存查询 - 便利店进销存系统</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f5f5f5;
+      }
+      .header {
+        background-color: #007bff;
+        color: white;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .back-btn {
+        background-color: #6c757d;
+        color: white;
+        padding: 8px 15px;
+        text-decoration: none;
+        border-radius: 4px;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 0 20px;
+      }
+      .search-box {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+      }
+      .search-input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 16px;
+      }
+      .stock-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 15px;
+      }
+      .stock-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+      .product-image {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+      }
+      .stock-info {
+        padding: 15px;
+      }
+      .product-name {
+        font-weight: bold;
+        margin-bottom: 8px;
+        font-size: 16px;
+      }
+      .product-price {
+        color: #007bff;
+        font-size: 18px;
+        margin-bottom: 10px;
+      }
+      .stock-level {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .stock-number {
+        font-size: 20px;
+        font-weight: bold;
+      }
+      .stock-status {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        color: white;
+      }
+      .stock-normal {
+        background-color: #28a745;
+      }
+      .stock-low {
+        background-color: #ffc107;
+        color: #212529;
+      }
+      .stock-empty {
+        background-color: #dc3545;
+      }
+      .stats {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+      }
+      .stat-item {
+        text-align: center;
+      }
+      .stat-number {
+        font-size: 24px;
+        font-weight: bold;
+        color: #007bff;
+      }
+      .stat-label {
+        color: #666;
+        margin-top: 5px;
+      }
+      .no-results {
+        text-align: center;
+        color: #666;
+        padding: 40px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>库存查询</h1>
+      <a href="/" class="back-btn">返回首页</a>
+    </div>
+
+    <div class="container">
+      <div class="stats" id="stats">
+        <!-- 统计信息将通过JavaScript加载 -->
+      </div>
+
+      <div class="search-box">
+        <input
+          type="text"
+          id="search-input"
+          class="search-input"
+          placeholder="搜索商品名称..."
+        />
+      </div>
+
+      <div id="stock-grid" class="stock-grid">
+        <!-- 库存信息将通过JavaScript加载 -->
+      </div>
+
+      <div id="no-results" class="no-results" style="display: none">
+        没有找到匹配的商品
+      </div>
+    </div>
+
+    <script>
+      let allProducts = [];
+
+      // 页面加载时获取库存数据
+      document.addEventListener("DOMContentLoaded", function () {
+        loadStock();
+
+        // 添加搜索功能
+        document
+          .getElementById("search-input")
+          .addEventListener("input", function () {
+            const searchTerm = this.value.toLowerCase();
+            filterProducts(searchTerm);
+          });
+      });
+
+      function loadStock() {
+        fetch("/products")
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.success) {
+              allProducts = data.products;
+              renderStats();
+              renderStock(allProducts);
+            }
+          })
+          .catch((error) => {
+            console.error("加载库存失败:", error);
+          });
+      }
+
+      function renderStats() {
+        const statsDiv = document.getElementById("stats");
+
+        const totalProducts = allProducts.length;
+        const totalStock = allProducts.reduce(
+          (sum, product) => sum + product.stock,
+          0
+        );
+        const lowStockCount = allProducts.filter(
+          (product) => product.stock <= 10 && product.stock > 0
+        ).length;
+        const emptyStockCount = allProducts.filter(
+          (product) => product.stock === 0
+        ).length;
+        const totalValue = allProducts.reduce(
+          (sum, product) => sum + product.stock * product.price,
+          0
+        );
+
+        statsDiv.innerHTML = `
+                <div class="stat-item">
+                    <div class="stat-number">${totalProducts}</div>
+                    <div class="stat-label">商品种类</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">${totalStock}</div>
+                    <div class="stat-label">总库存量</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">${lowStockCount}</div>
+                    <div class="stat-label">库存不足</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">${emptyStockCount}</div>
+                    <div class="stat-label">缺货商品</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">¥${totalValue.toFixed(2)}</div>
+                    <div class="stat-label">库存总价值</div>
+                </div>
+            `;
+      }
+
+      function renderStock(products) {
+        const grid = document.getElementById("stock-grid");
+        const noResults = document.getElementById("no-results");
+
+        if (products.length === 0) {
+          grid.style.display = "none";
+          noResults.style.display = "block";
+          return;
+        }
+
+        grid.style.display = "grid";
+        noResults.style.display = "none";
+        grid.innerHTML = "";
+
+        products.forEach((product) => {
+          const stockCard = document.createElement("div");
+          stockCard.className = "stock-card";
+
+          let stockStatus = "stock-normal";
+          let statusText = "库存充足";
+
+          if (product.stock === 0) {
+            stockStatus = "stock-empty";
+            statusText = "缺货";
+          } else if (product.stock <= 10) {
+            stockStatus = "stock-low";
+            statusText = "库存不足";
+          }
+
+          stockCard.innerHTML = `
+                    <img src="${product.image_url}" alt="${product.name}" class="product-image"
+                         onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjUwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuaXoOWbvueJhzwvdGV4dD48L3N2Zz4='">
+                    <div class="stock-info">
+                        <div class="product-name">${product.name}</div>
+                        <div class="product-price">¥${product.price}</div>
+                        <div class="stock-level">
+                            <span class="stock-number">${product.stock}</span>
+                            <span class="stock-status ${stockStatus}">${statusText}</span>
+                        </div>
+                    </div>
+                `;
+          grid.appendChild(stockCard);
+        });
+      }
+
+      function filterProducts(searchTerm) {
+        if (!searchTerm) {
+          renderStock(allProducts);
+          return;
+        }
+
+        const filteredProducts = allProducts.filter((product) =>
+          product.name.toLowerCase().includes(searchTerm)
+        );
+
+        renderStock(filteredProducts);
+      }
+    </script>
+  </body>
+</html>

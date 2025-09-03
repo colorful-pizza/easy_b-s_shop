@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>日清月结 - 便利店进销存系统</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f5f5f5;
+      }
+      .header {
+        background-color: #007bff;
+        color: white;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .back-btn {
+        background-color: #6c757d;
+        color: white;
+        padding: 8px 15px;
+        text-decoration: none;
+        border-radius: 4px;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 0 20px;
+      }
+      .date-filter {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .date-filter input {
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      .query-btn {
+        background-color: #007bff;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .query-btn:hover {
+        background-color: #0056b3;
+      }
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+      }
+      .stat-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        text-align: center;
+      }
+      .stat-title {
+        color: #666;
+        font-size: 14px;
+        margin-bottom: 10px;
+      }
+      .stat-value {
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+      .stat-value.positive {
+        color: #28a745;
+      }
+      .stat-value.negative {
+        color: #dc3545;
+      }
+      .stat-value.neutral {
+        color: #007bff;
+      }
+      .total-profit {
+        background: linear-gradient(135deg, #007bff, #0056b3);
+        color: white;
+      }
+      .total-profit .stat-title {
+        color: #e3f2fd;
+      }
+      .details {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+      .details-header {
+        background-color: #f8f9fa;
+        padding: 15px 20px;
+        border-bottom: 1px solid #eee;
+      }
+      .details-content {
+        max-height: 500px;
+        overflow-y: auto;
+      }
+      .detail-item {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+        gap: 15px;
+        padding: 12px 20px;
+        border-bottom: 1px solid #f0f0f0;
+        align-items: center;
+      }
+      .detail-header {
+        background-color: #f8f9fa;
+        font-weight: bold;
+      }
+      .action-in {
+        color: #28a745;
+      }
+      .action-out {
+        color: #dc3545;
+      }
+      .loading {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+      }
+      .no-data {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+      @media (max-width: 768px) {
+        .date-filter {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .detail-item {
+          grid-template-columns: 1fr;
+          gap: 5px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>日清月结</h1>
+      <a href="/" class="back-btn">返回首页</a>
+    </div>
+
+    <div class="container">
+      <div class="date-filter">
+        <label>开始日期:</label>
+        <input type="date" id="start-date" />
+
+        <label>结束日期:</label>
+        <input type="date" id="end-date" />
+
+        <button class="query-btn" onclick="queryReport()">查询</button>
+      </div>
+
+      <div id="stats-container">
+        <div class="loading">正在加载数据...</div>
+      </div>
+
+      <div id="details-container" style="display: none">
+        <div class="details">
+          <div class="details-header">
+            <h3>详细流水记录</h3>
+          </div>
+          <div class="details-content">
+            <div class="detail-item detail-header">
+              <div>时间</div>
+              <div>商品</div>
+              <div>操作</div>
+              <div>数量</div>
+              <div>金额</div>
+              <div>操作人</div>
+            </div>
+            <div id="details-list">
+              <!-- 详细记录将通过JavaScript加载 -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // 设置默认日期为今天
+      document.addEventListener("DOMContentLoaded", function () {
+        const today = new Date().toISOString().split("T")[0];
+        document.getElementById("start-date").value = today;
+        document.getElementById("end-date").value = today;
+
+        // 自动查询今天的数据
+        queryReport();
+      });
+
+      function queryReport() {
+        const startDate = document.getElementById("start-date").value;
+        const endDate = document.getElementById("end-date").value;
+
+        if (!startDate || !endDate) {
+          alert("请选择查询日期范围");
+          return;
+        }
+
+        if (startDate > endDate) {
+          alert("开始日期不能晚于结束日期");
+          return;
+        }
+
+        // 显示加载状态
+        document.getElementById("stats-container").innerHTML =
+          '<div class="loading">正在加载数据...</div>';
+        document.getElementById("details-container").style.display = "none";
+
+        fetch("/get_report", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            start_date: startDate,
+            end_date: endDate,
+          }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.success) {
+              renderStats(data.data);
+              renderDetails(data.data.details);
+            } else {
+              document.getElementById(
+                "stats-container"
+              ).innerHTML = `<div class="no-data">${data.message}</div>`;
+            }
+          })
+          .catch((error) => {
+            console.error("查询失败:", error);
+            document.getElementById("stats-container").innerHTML =
+              '<div class="no-data">查询失败，请重试</div>';
+          });
+      }
+
+      function renderStats(data) {
+        const container = document.getElementById("stats-container");
+
+        container.innerHTML = `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-title">总收入</div>
+                        <div class="stat-value positive">¥${data.total_income.toFixed(
+                          2
+                        )}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">总支出</div>
+                        <div class="stat-value negative">¥${data.total_expense.toFixed(
+                          2
+                        )}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">净利润</div>
+                        <div class="stat-value ${
+                          data.profit >= 0 ? "positive" : "negative"
+                        }">¥${data.profit.toFixed(2)}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">进货总量</div>
+                        <div class="stat-value neutral">${
+                          data.total_in || 0
+                        }件</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">出货总量</div>
+                        <div class="stat-value neutral">${
+                          data.total_out || 0
+                        }件</div>
+                    </div>
+                    <div class="stat-card total-profit">
+                        <div class="stat-title">累计总利润</div>
+                        <div class="stat-value">¥${data.total_profit.toFixed(
+                          2
+                        )}</div>
+                    </div>
+                </div>
+            `;
+      }
+
+      function renderDetails(details) {
+        const detailsList = document.getElementById("details-list");
+        const container = document.getElementById("details-container");
+
+        if (!details || details.length === 0) {
+          detailsList.innerHTML =
+            '<div style="padding: 20px; text-align: center; color: #666;">暂无流水记录</div>';
+        } else {
+          detailsList.innerHTML = details
+            .map(
+              (detail) => `
+                    <div class="detail-item">
+                        <div>${detail.time}</div>
+                        <div>${detail.product_name}</div>
+                        <div class="${
+                          detail.action === "进货" ? "action-in" : "action-out"
+                        }">${detail.action}</div>
+                        <div>${detail.quantity}件</div>
+                        <div class="${
+                          detail.finance_type === "收入"
+                            ? "action-in"
+                            : "action-out"
+                        }">
+                            ${detail.finance_type} ¥${detail.amount.toFixed(2)}
+                        </div>
+                        <div>${detail.username}</div>
+                    </div>
+                `
+            )
+            .join("");
+        }
+
+        container.style.display = "block";
+      }
+    </script>
+  </body>
+</html>
