@@ -184,9 +184,9 @@
           <div class="details-content">
             <div class="detail-item detail-header">
               <div>时间</div>
-              <div>商品</div>
-              <div>操作</div>
-              <div>数量</div>
+              <div>订单号</div>
+              <div>类型</div>
+              <div>商品明细</div>
               <div>金额</div>
               <div>操作人</div>
             </div>
@@ -280,15 +280,15 @@
                         }">¥${data.profit.toFixed(2)}</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-title">进货总量</div>
+                        <div class="stat-title">采购总量</div>
                         <div class="stat-value neutral">${
-                          data.total_in || 0
+                          data.total_purchase || 0
                         }件</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-title">出货总量</div>
+                        <div class="stat-title">销售总量</div>
                         <div class="stat-value neutral">${
-                          data.total_out || 0
+                          data.total_sales || 0
                         }件</div>
                     </div>
                     <div class="stat-card total-profit">
@@ -314,18 +314,14 @@
               (detail) => `
                     <div class="detail-item">
                         <div>${detail.time}</div>
-                        <div>${detail.product_name}</div>
+                        <div>${detail.order_no}</div>
                         <div class="${
-                          detail.action === "进货" ? "action-in" : "action-out"
-                        }">${detail.action}</div>
-                        <div>${detail.quantity}件</div>
+                          detail.type === "采购" ? "action-out" : "action-in"
+                        }">${detail.type}</div>
+                        <div>${detail.products}</div>
                         <div class="${
-                          detail.finance_type === "收入"
-                            ? "action-in"
-                            : "action-out"
-                        }">
-                            ${detail.finance_type} ¥${detail.amount.toFixed(2)}
-                        </div>
+                          detail.type === "采购" ? "action-out" : "action-in"
+                        }">¥${detail.amount.toFixed(2)}</div>
                         <div>${detail.username}</div>
                     </div>
                 `

@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>商品销售 - 便利店进销存系统</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f5f5f5;
+      }
+      .header {
+        background-color: #007bff;
+        color: white;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .back-btn {
+        background-color: #6c757d;
+        color: white;
+        padding: 8px 15px;
+        text-decoration: none;
+        border-radius: 4px;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 0 20px;
+      }
+      .products-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+      }
+      .product-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+      .product-image {
+        width: 100%;
+        height: 120px;
+        object-fit: cover;
+      }
+      .product-info {
+        padding: 15px;
+      }
+      .product-name {
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+      .product-price {
+        color: #28a745;
+        font-size: 18px;
+        margin-bottom: 10px;
+      }
+      .product-stock {
+        color: #666;
+        font-size: 14px;
+        margin-bottom: 10px;
+      }
+      .stock-low {
+        color: #ffc107;
+      }
+      .stock-empty {
+        color: #dc3545;
+      }
+      .action-controls {
+        display: flex;
+        gap: 5px;
+        align-items: center;
+      }
+      .quantity-input {
+        width: 50px;
+        padding: 5px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        text-align: center;
+      }
+      .sales-btn {
+        padding: 8px 12px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .sales-btn:disabled {
+        background-color: #6c757d;
+        cursor: not-allowed;
+      }
+      .cart {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        position: sticky;
+        top: 20px;
+      }
+      .cart-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid #eee;
+      }
+      .cart-item-info {
+        flex: 1;
+      }
+      .cart-item-name {
+        font-weight: bold;
+      }
+      .cart-item-details {
+        font-size: 12px;
+        color: #666;
+      }
+      .cart-amount {
+        color: #28a745;
+        font-weight: bold;
+        margin: 0 10px;
+      }
+      .remove-btn {
+        background: none;
+        border: none;
+        color: #dc3545;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .cart-total {
+        border-top: 2px solid #007bff;
+        padding-top: 15px;
+        margin-top: 15px;
+      }
+      .total-amount {
+        font-size: 18px;
+        font-weight: bold;
+        color: #007bff;
+        text-align: center;
+      }
+      .submit-btn {
+        width: 100%;
+        padding: 12px;
+        background-color: #28a745;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        margin-top: 15px;
+      }
+      .submit-btn:hover {
+        background-color: #218838;
+      }
+      .message {
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+        display: none;
+      }
+      .message.success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+      .message.error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+      .main-content {
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        gap: 20px;
+      }
+      @media (max-width: 768px) {
+        .main-content {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>商品销售</h1>
+      <a href="/" class="back-btn">返回首页</a>
+    </div>
+
+    <div class="container">
+      <div id="message" class="message"></div>
+
+      <div class="main-content">
+        <div>
+          <h3>商品列表</h3>
+          <div id="products-grid" class="products-grid">
+            <!-- 商品列表将通过JavaScript加载 -->
+          </div>
+        </div>
+
+        <div class="cart">
+          <h3>销售清单</h3>
+          <div id="cart-items"></div>
+          <div class="cart-total">
+            <div class="total-amount">
+              总金额: ¥<span id="total-amount">0.00</span>
+            </div>
+            <button id="submit-btn" class="submit-btn">确认销售</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let products = [];
+      let cart = [];
+
+      // 页面加载时获取商品列表
+      document.addEventListener("DOMContentLoaded", function () {
+        loadProducts();
+      });
+
+      function loadProducts() {
+        fetch("/products")
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.success) {
+              products = data.products;
+              renderProducts();
+            }
+          })
+          .catch((error) => {
+            showMessage("加载商品失败", "error");
+          });
+      }
+
+      function renderProducts() {
+        const grid = document.getElementById("products-grid");
+        grid.innerHTML = "";
+
+        products.forEach((product) => {
+          const productCard = document.createElement("div");
+          productCard.className = "product-card";
+
+          let stockClass = "";
+          let stockText = `库存: ${product.stock}`;
+          let isDisabled = product.stock === 0;
+
+          if (product.stock === 0) {
+            stockClass = "stock-empty";
+            stockText = "缺货";
+          } else if (product.stock <= 10) {
+            stockClass = "stock-low";
+          }
+
+          productCard.innerHTML = `
+                    <img src="${product.image_url}" alt="${
+            product.name
+          }" class="product-image" 
+                         onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuaXoOWbvueJhzwvdGV4dD48L3N2Zz4='">
+                    <div class="product-info">
+                        <div class="product-name">${product.name}</div>
+                        <div class="product-price">¥${
+                          product.selling_price
+                        }</div>
+                        <div class="product-stock ${stockClass}">${stockText}</div>
+                        <div class="action-controls">
+                            <input type="number" class="quantity-input" value="1" min="1" max="${
+                              product.stock
+                            }" id="qty-${product.id}" ${
+            isDisabled ? "disabled" : ""
+          }>
+                            <button class="sales-btn" onclick="addToCart(${
+                              product.id
+                            })" ${isDisabled ? "disabled" : ""}>销售</button>
+                        </div>
+                    </div>
+                `;
+          grid.appendChild(productCard);
+        });
+      }
+
+      function addToCart(productId) {
+        const qtyInput = document.getElementById(`qty-${productId}`);
+        const quantity = parseInt(qtyInput.value);
+
+        if (quantity <= 0) {
+          showMessage("数量必须大于0", "error");
+          return;
+        }
+
+        const product = products.find((p) => p.id === productId);
+        if (!product) return;
+
+        // 检查库存是否足够
+        if (quantity > product.stock) {
+          showMessage("库存不足", "error");
+          return;
+        }
+
+        // 检查购物车中是否已有相同商品
+        const existingIndex = cart.findIndex(
+          (item) => item.product_id === productId
+        );
+
+        if (existingIndex >= 0) {
+          const newQuantity = cart[existingIndex].quantity + quantity;
+          if (newQuantity > product.stock) {
+            showMessage("库存不足", "error");
+            return;
+          }
+          cart[existingIndex].quantity = newQuantity;
+          cart[existingIndex].amount = newQuantity * product.selling_price;
+        } else {
+          cart.push({
+            product_id: productId,
+            product_name: product.name,
+            quantity: quantity,
+            selling_price: product.selling_price,
+            amount: quantity * product.selling_price,
+          });
+        }
+
+        renderCart();
+        qtyInput.value = 1; // 重置数量输入框
+      }
+
+      function renderCart() {
+        const cartItems = document.getElementById("cart-items");
+        const totalAmountSpan = document.getElementById("total-amount");
+
+        cartItems.innerHTML = "";
+        let totalAmount = 0;
+
+        cart.forEach((item, index) => {
+          totalAmount += item.amount;
+
+          const cartItem = document.createElement("div");
+          cartItem.className = "cart-item";
+          cartItem.innerHTML = `
+                    <div class="cart-item-info">
+                        <div class="cart-item-name">${item.product_name}</div>
+                        <div class="cart-item-details">
+                            ¥${item.selling_price} × ${item.quantity}
+                        </div>
+                    </div>
+                    <div class="cart-amount">¥${item.amount.toFixed(2)}</div>
+                    <button class="remove-btn" onclick="removeFromCart(${index})">删除</button>
+                `;
+          cartItems.appendChild(cartItem);
+        });
+
+        totalAmountSpan.textContent = totalAmount.toFixed(2);
+      }
+
+      function removeFromCart(index) {
+        cart.splice(index, 1);
+        renderCart();
+      }
+
+      document
+        .getElementById("submit-btn")
+        .addEventListener("click", function () {
+          if (cart.length === 0) {
+            showMessage("请先添加销售商品", "error");
+            return;
+          }
+
+          const items = cart.map((item) => ({
+            product_id: item.product_id,
+            quantity: item.quantity,
+          }));
+
+          fetch("/sales_action", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ items: items }),
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              showMessage(data.message, data.success ? "success" : "error");
+              if (data.success) {
+                cart = [];
+                renderCart();
+                loadProducts(); // 重新加载商品以更新库存
+              }
+            })
+            .catch((error) => {
+              showMessage("操作失败，请重试", "error");
+            });
+        });
+
+      function showMessage(text, type) {
+        const messageDiv = document.getElementById("message");
+        messageDiv.textContent = text;
+        messageDiv.className = `message ${type}`;
+        messageDiv.style.display = "block";
+
+        setTimeout(() => {
+          messageDiv.style.display = "none";
+        }, 3000);
+      }
+    </script>
+  </body>
+</html>

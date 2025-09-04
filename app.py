@@ -79,7 +79,7 @@ def get_products():
     cursor = conn.cursor()
     
     try:
-        cursor.execute("SELECT id, name, price, stock, image_url FROM products ORDER BY id")
+        cursor.execute("SELECT id, name, selling_price, cost_price, stock, image_url FROM products ORDER BY id")
         products = cursor.fetchall()
         
         result = []
@@ -87,9 +87,10 @@ def get_products():
             result.append({
                 'id': product[0],
                 'name': product[1],
-                'price': float(product[2]),
-                'stock': product[3],
-                'image_url': product[4]
+                'selling_price': float(product[2]),
+                'cost_price': float(product[3]),
+                'stock': product[4],
+                'image_url': product[5]
             })
         
         return jsonify({'success': True, 'products': result})
@@ -97,72 +98,169 @@ def get_products():
         cursor.close()
         conn.close()
 
-@app.route('/inventory_action', methods=['POST'])
-def inventory_action():
-    """进货/出货操作"""
+@app.route('/purchase_action', methods=['POST'])
+def purchase_action():
+    """进货操作"""
     if 'user_id' not in session:
         return jsonify({'success': False, 'message': '请先登录'})
     
-    data = request.get_json()
-    actions = data.get('actions', [])
+    if session['role'] != 'manager':
+        return jsonify({'success': False, 'message': '权限不足，只有店长可以进货'})
     
-    if not actions:
-        return jsonify({'success': False, 'message': '没有操作数据'})
+    data = request.get_json()
+    items = data.get('items', [])
+    
+    if not items:
+        return jsonify({'success': False, 'message': '没有进货数据'})
     
     conn = get_db_connection()
     cursor = conn.cursor()
     
     try:
-        for action in actions:
-            product_id = action.get('product_id')
-            action_type = action.get('action')  # 'in' 或 'out'
-            quantity = action.get('quantity', 1)
+        # 生成采购单号
+        now = datetime.now()
+        order_no = f"PO{now.strftime('%Y%m%d%H%M%S')}"
+        
+        total_amount = 0
+        
+        # 检查商品并计算总金额
+        for item in items:
+            product_id = item.get('product_id')
+            quantity = item.get('quantity', 1)
             
-            if not product_id or not action_type or quantity <= 0:
+            if not product_id or quantity <= 0:
                 continue
             
-            # 获取商品价格
-            cursor.execute("SELECT price, stock FROM products WHERE id = %s", (product_id,))
+            # 获取商品进价
+            cursor.execute("SELECT cost_price FROM products WHERE id = %s", (product_id,))
             product_info = cursor.fetchone()
             
             if not product_info:
+                return jsonify({'success': False, 'message': f'商品ID {product_id} 不存在'})
+            
+            cost_price = float(product_info[0])
+            amount = cost_price * quantity
+            total_amount += amount
+        
+        # 创建采购订单
+        cursor.execute(
+            "INSERT INTO purchase_orders (order_no, total_amount, order_time, user_id) VALUES (%s, %s, %s, %s)",
+            (order_no, total_amount, now, session['user_id'])
+        )
+        
+        # 创建采购明细并更新库存
+        for item in items:
+            product_id = item.get('product_id')
+            quantity = item.get('quantity', 1)
+            
+            if not product_id or quantity <= 0:
                 continue
             
-            price = float(product_info[0])
-            current_stock = product_info[1]
+            # 获取商品进价
+            cursor.execute("SELECT cost_price FROM products WHERE id = %s", (product_id,))
+            cost_price = float(cursor.fetchone()[0])
+            amount = cost_price * quantity
             
-            # 检查出货时库存是否足够
-            if action_type == 'out' and current_stock < quantity:
-                return jsonify({'success': False, 'message': f'商品ID {product_id} 库存不足'})
+            # 插入采购明细
+            cursor.execute(
+                "INSERT INTO purchase_details (order_no, product_id, quantity, amount) VALUES (%s, %s, %s, %s)",
+                (order_no, product_id, quantity, amount)
+            )
             
             # 更新库存
-            if action_type == 'in':
-                cursor.execute("UPDATE products SET stock = stock + %s WHERE id = %s", (quantity, product_id))
-                amount = price * quantity  # 进货成本
-                finance_type = 'out'  # 资金流出
-            else:  # 'out'
-                cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (quantity, product_id))
-                amount = price * quantity  # 销售收入
-                finance_type = 'in'  # 资金流入
-            
-            # 记录库存流水
-            cursor.execute(
-                "INSERT INTO inventory_log (product_id, action, quantity, action_time, user_id) VALUES (%s, %s, %s, %s, %s)",
-                (product_id, action_type, quantity, datetime.now(), session['user_id'])
-            )
-            
-            # 记录资金流水
-            cursor.execute(
-                "INSERT INTO finance_log (type, amount, time, user_id) VALUES (%s, %s, %s, %s)",
-                (finance_type, amount, datetime.now(), session['user_id'])
-            )
+            cursor.execute("UPDATE products SET stock = stock + %s WHERE id = %s", (quantity, product_id))
         
         conn.commit()
-        return jsonify({'success': True, 'message': '操作成功'})
+        return jsonify({'success': True, 'message': f'进货成功，订单号：{order_no}'})
     
     except Exception as e:
         conn.rollback()
-        return jsonify({'success': False, 'message': f'操作失败: {str(e)}'})
+        return jsonify({'success': False, 'message': f'进货失败: {str(e)}'})
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route('/sales_action', methods=['POST'])
+def sales_action():
+    """销售操作"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': '请先登录'})
+    
+    data = request.get_json()
+    items = data.get('items', [])
+    
+    if not items:
+        return jsonify({'success': False, 'message': '没有销售数据'})
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # 生成销售单号
+        now = datetime.now()
+        order_no = f"SO{now.strftime('%Y%m%d%H%M%S')}"
+        
+        total_amount = 0
+        
+        # 检查库存并计算总金额
+        for item in items:
+            product_id = item.get('product_id')
+            quantity = item.get('quantity', 1)
+            
+            if not product_id or quantity <= 0:
+                continue
+            
+            # 获取商品售价和库存
+            cursor.execute("SELECT selling_price, stock FROM products WHERE id = %s", (product_id,))
+            product_info = cursor.fetchone()
+            
+            if not product_info:
+                return jsonify({'success': False, 'message': f'商品ID {product_id} 不存在'})
+            
+            selling_price = float(product_info[0])
+            current_stock = product_info[1]
+            
+            # 检查库存是否足够
+            if current_stock < quantity:
+                return jsonify({'success': False, 'message': f'商品ID {product_id} 库存不足'})
+            
+            amount = selling_price * quantity
+            total_amount += amount
+        
+        # 创建销售订单
+        cursor.execute(
+            "INSERT INTO sales_orders (order_no, total_amount, order_time, user_id) VALUES (%s, %s, %s, %s)",
+            (order_no, total_amount, now, session['user_id'])
+        )
+        
+        # 创建销售明细并更新库存
+        for item in items:
+            product_id = item.get('product_id')
+            quantity = item.get('quantity', 1)
+            
+            if not product_id or quantity <= 0:
+                continue
+            
+            # 获取商品售价
+            cursor.execute("SELECT selling_price FROM products WHERE id = %s", (product_id,))
+            selling_price = float(cursor.fetchone()[0])
+            amount = selling_price * quantity
+            
+            # 插入销售明细
+            cursor.execute(
+                "INSERT INTO sales_details (order_no, product_id, quantity, amount) VALUES (%s, %s, %s, %s)",
+                (order_no, product_id, quantity, amount)
+            )
+            
+            # 更新库存
+            cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (quantity, product_id))
+        
+        conn.commit()
+        return jsonify({'success': True, 'message': f'销售成功，订单号：{order_no}'})
+    
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'message': f'销售失败: {str(e)}'})
     finally:
         cursor.close()
         conn.close()
@@ -172,19 +270,68 @@ def stock():
     """库存查询页面"""
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    return render_template('stock.html')
+    return render_template('stock.html', user=session)
 
-@app.route('/transaction')
-def transaction():
-    """进货出货页面"""
+@app.route('/update_price', methods=['POST'])
+def update_price():
+    """更新商品价格（仅店长可用）"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': '请先登录'})
+    
+    if session['role'] != 'manager':
+        return jsonify({'success': False, 'message': '权限不足，只有店长可以修改价格'})
+    
+    data = request.get_json()
+    product_id = data.get('product_id')
+    selling_price = data.get('selling_price')
+    cost_price = data.get('cost_price')
+    
+    if not product_id or selling_price is None or cost_price is None:
+        return jsonify({'success': False, 'message': '参数不完整'})
+    
+    if selling_price <= 0 or cost_price <= 0:
+        return jsonify({'success': False, 'message': '价格必须大于0'})
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute(
+            "UPDATE products SET selling_price = %s, cost_price = %s WHERE id = %s",
+            (selling_price, cost_price, product_id)
+        )
+        
+        if cursor.rowcount > 0:
+            conn.commit()
+            return jsonify({'success': True, 'message': '价格更新成功'})
+        else:
+            return jsonify({'success': False, 'message': '商品不存在'})
+    
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'message': f'更新失败: {str(e)}'})
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route('/purchase')
+def purchase():
+    """进货页面（仅店长可访问）"""
     if 'user_id' not in session:
         return redirect(url_for('login'))
     
-    # 检查权限：店员只能访问出货功能
-    if session['role'] == 'staff':
-        return render_template('transaction.html', user=session)
+    if session['role'] != 'manager':
+        return redirect(url_for('index'))
     
-    return render_template('transaction.html', user=session)
+    return render_template('purchase.html', user=session)
+
+@app.route('/sales')
+def sales():
+    """销售页面"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    return render_template('sales.html', user=session)
 
 @app.route('/report')
 def report():
@@ -204,7 +351,7 @@ def get_report():
     if 'user_id' not in session:
         return jsonify({'success': False, 'message': '请先登录'})
     
-    if session['role'] == 'staff':
+    if session['role'] != 'manager':
         return jsonify({'success': False, 'message': '权限不足'})
     
     data = request.get_json()
@@ -215,69 +362,93 @@ def get_report():
     cursor = conn.cursor()
     
     try:
-        # 获取指定时间段的资金流水
+        # 获取指定时间段的销售收入
         cursor.execute("""
-            SELECT type, SUM(amount) FROM finance_log 
-            WHERE DATE(time) BETWEEN %s AND %s 
-            GROUP BY type
+            SELECT COALESCE(SUM(total_amount), 0) FROM sales_orders 
+            WHERE DATE(order_time) BETWEEN %s AND %s
         """, (start_date, end_date))
-        finance_data = cursor.fetchall()
+        total_income = float(cursor.fetchone()[0])
         
-        total_income = 0
-        total_expense = 0
-        for item in finance_data:
-            if item[0] == 'in':
-                total_income = float(item[1])
-            else:
-                total_expense = float(item[1])
+        # 获取指定时间段的采购支出
+        cursor.execute("""
+            SELECT COALESCE(SUM(total_amount), 0) FROM purchase_orders 
+            WHERE DATE(order_time) BETWEEN %s AND %s
+        """, (start_date, end_date))
+        total_expense = float(cursor.fetchone()[0])
         
         profit = total_income - total_expense
         
-        # 获取库存流水统计
+        # 获取采购数量统计
         cursor.execute("""
-            SELECT action, SUM(quantity) FROM inventory_log 
-            WHERE DATE(action_time) BETWEEN %s AND %s 
-            GROUP BY action
+            SELECT COALESCE(SUM(pd.quantity), 0) FROM purchase_details pd
+            JOIN purchase_orders po ON pd.order_no = po.order_no
+            WHERE DATE(po.order_time) BETWEEN %s AND %s
         """, (start_date, end_date))
-        inventory_data = cursor.fetchall()
+        total_purchase = cursor.fetchone()[0]
         
-        total_in = 0
-        total_out = 0
-        for item in inventory_data:
-            if item[0] == 'in':
-                total_in = item[1]
-            else:
-                total_out = item[1]
+        # 获取销售数量统计
+        cursor.execute("""
+            SELECT COALESCE(SUM(sd.quantity), 0) FROM sales_details sd
+            JOIN sales_orders so ON sd.order_no = so.order_no
+            WHERE DATE(so.order_time) BETWEEN %s AND %s
+        """, (start_date, end_date))
+        total_sales = cursor.fetchone()[0]
         
         # 获取历史总利润
-        cursor.execute("SELECT SUM(CASE WHEN type='in' THEN amount ELSE -amount END) FROM finance_log")
+        cursor.execute("""
+            SELECT 
+                COALESCE(SUM(so.total_amount), 0) - COALESCE(SUM(po.total_amount), 0) as total_profit
+            FROM 
+                (SELECT total_amount FROM sales_orders) so,
+                (SELECT total_amount FROM purchase_orders) po
+        """)
         total_profit_result = cursor.fetchone()
         total_profit = float(total_profit_result[0]) if total_profit_result[0] else 0
         
-        # 获取详细流水
+        # 重新计算历史总利润（更准确的方法）
+        cursor.execute("SELECT COALESCE(SUM(total_amount), 0) FROM sales_orders")
+        all_sales = float(cursor.fetchone()[0])
+        cursor.execute("SELECT COALESCE(SUM(total_amount), 0) FROM purchase_orders")
+        all_purchases = float(cursor.fetchone()[0])
+        total_profit = all_sales - all_purchases
+        
+        # 获取详细流水（最近的销售和采购记录）
         cursor.execute("""
-            SELECT il.action_time, p.name, il.action, il.quantity, 
-                   fl.type, fl.amount, u.username
-            FROM inventory_log il
-            JOIN products p ON il.product_id = p.id
-            JOIN finance_log fl ON DATE(il.action_time) = DATE(fl.time) AND il.user_id = fl.user_id
-            JOIN users u ON il.user_id = u.id
-            WHERE DATE(il.action_time) BETWEEN %s AND %s
-            ORDER BY il.action_time DESC
-            LIMIT 50
-        """, (start_date, end_date))
+            (SELECT 
+                so.order_time, so.order_no, '销售' as type, 
+                so.total_amount, u.username,
+                GROUP_CONCAT(CONCAT(p.name, '×', sd.quantity) SEPARATOR ', ') as products
+            FROM sales_orders so
+            JOIN sales_details sd ON so.order_no = sd.order_no
+            JOIN products p ON sd.product_id = p.id
+            JOIN users u ON so.user_id = u.id
+            WHERE DATE(so.order_time) BETWEEN %s AND %s
+            GROUP BY so.order_no)
+            UNION ALL
+            (SELECT 
+                po.order_time, po.order_no, '采购' as type,
+                po.total_amount, u.username,
+                GROUP_CONCAT(CONCAT(p.name, '×', pd.quantity) SEPARATOR ', ') as products
+            FROM purchase_orders po
+            JOIN purchase_details pd ON po.order_no = pd.order_no
+            JOIN products p ON pd.product_id = p.id
+            JOIN users u ON po.user_id = u.id
+            WHERE DATE(po.order_time) BETWEEN %s AND %s
+            GROUP BY po.order_no)
+            ORDER BY order_time DESC
+            LIMIT 20
+        """, (start_date, end_date, start_date, end_date))
         details = cursor.fetchall()
         
         detail_list = []
         for detail in details:
             detail_list.append({
                 'time': detail[0].strftime('%Y-%m-%d %H:%M:%S'),
-                'product_name': detail[1],
-                'action': '进货' if detail[2] == 'in' else '出货',
-                'quantity': detail[3],
-                'finance_type': '收入' if detail[4] == 'in' else '支出',
-                'amount': float(detail[5]),
-                'username': detail[6]
+                'order_no': detail[1],
+                'type': detail[2],
+                'amount': float(detail[3]),
+                'username': detail[4],
+                'products': detail[5]
             })
         
         return jsonify({
@@ -286,8 +457,8 @@ def get_report():
                 'total_income': total_income,
                 'total_expense': total_expense,
                 'profit': profit,
-                'total_in': total_in,
-                'total_out': total_out,
+                'total_purchase': total_purchase,
+                'total_sales': total_sales,
                 'total_profit': total_profit,
                 'details': detail_list
             }

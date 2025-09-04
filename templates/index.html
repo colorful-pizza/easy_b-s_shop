@@ -94,20 +94,26 @@
     <div class="container">
       <div class="nav-cards">
         {% if user.role == 'manager' %}
-        <a href="/transaction" class="nav-card">
-          <h3>进货出货</h3>
-          <p>商品进货和销售操作</p>
+        <a href="/purchase" class="nav-card">
+          <h3>商品进货</h3>
+          <p>采购商品，补充库存</p>
+        </a>
+        <a href="/sales" class="nav-card">
+          <h3>商品销售</h3>
+          <p>销售商品，开具订单</p>
         </a>
         {% else %}
-        <a href="/transaction" class="nav-card">
+        <a href="/sales" class="nav-card">
           <h3>商品销售</h3>
-          <p>商品销售操作</p>
+          <p>销售商品，开具订单</p>
         </a>
         {% endif %}
 
         <a href="/stock" class="nav-card">
-          <h3>库存查询</h3>
-          <p>查看当前商品库存情况</p>
+          <h3>库存管理</h3>
+          <p>
+            查看商品库存{{ '，修改价格' if user.role == 'manager' else '' }}
+          </p>
         </a>
 
         {% if user.role == 'manager' %}

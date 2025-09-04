@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>库存查询 - 便利店进销存系统</title>
+    <title>库存管理 - 便利店进销存系统</title>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -133,11 +133,13 @@
   </head>
   <body>
     <div class="header">
-      <h1>库存查询</h1>
+      <h1>库存管理</h1>
       <a href="/" class="back-btn">返回首页</a>
     </div>
 
     <div class="container">
+      <div id="message" class="message"></div>
+
       <div class="stats" id="stats">
         <!-- 统计信息将通过JavaScript加载 -->
       </div>
@@ -162,6 +164,7 @@
 
     <script>
       let allProducts = [];
+      const userRole = "{{ user.role }}"; // 从后端获取用户角色
 
       // 页面加载时获取库存数据
       document.addEventListener("DOMContentLoaded", function () {
@@ -206,7 +209,7 @@
           (product) => product.stock === 0
         ).length;
         const totalValue = allProducts.reduce(
-          (sum, product) => sum + product.stock * product.price,
+          (sum, product) => sum + product.stock * product.selling_price,
           0
         );
 
@@ -264,15 +267,43 @@
           }
 
           stockCard.innerHTML = `
-                    <img src="${product.image_url}" alt="${product.name}" class="product-image"
+                    <img src="${product.image_url}" alt="${
+            product.name
+          }" class="product-image"
                          onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjUwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuaXoOWbvueJhzwvdGV4dD48L3N2Zz4='">
                     <div class="stock-info">
                         <div class="product-name">${product.name}</div>
-                        <div class="product-price">¥${product.price}</div>
+                        <div class="product-prices">
+                            <div class="selling-price">售价: ¥${
+                              product.selling_price
+                            }</div>
+                            ${
+                              userRole === "manager"
+                                ? `<div class="cost-price">进价: ¥${product.cost_price}</div>`
+                                : ""
+                            }
+                        </div>
                         <div class="stock-level">
                             <span class="stock-number">${product.stock}</span>
                             <span class="stock-status ${stockStatus}">${statusText}</span>
                         </div>
+                        ${
+                          userRole === "manager"
+                            ? `
+                        <div class="price-edit" id="edit-${product.id}">
+                            <div>
+                                售价: <input type="number" class="price-input" id="selling-price-${product.id}" value="${product.selling_price}" step="0.01" min="0.01">
+                            </div>
+                            <div style="margin-top: 5px;">
+                                进价: <input type="number" class="price-input" id="cost-price-${product.id}" value="${product.cost_price}" step="0.01" min="0.01">
+                            </div>
+                            <div style="margin-top: 10px;">
+                                <button class="save-btn" onclick="savePrice(${product.id})">保存</button>
+                            </div>
+                        </div>
+                        `
+                            : ""
+                        }
                     </div>
                 `;
           grid.appendChild(stockCard);
@@ -290,6 +321,64 @@
         );
 
         renderStock(filteredProducts);
+      }
+
+      function savePrice(productId) {
+        const sellingPriceInput = document.getElementById(
+          `selling-price-${productId}`
+        );
+        const costPriceInput = document.getElementById(
+          `cost-price-${productId}`
+        );
+
+        const sellingPrice = parseFloat(sellingPriceInput.value);
+        const costPrice = parseFloat(costPriceInput.value);
+
+        if (sellingPrice <= 0 || costPrice <= 0) {
+          showMessage("价格必须大于0", "error");
+          return;
+        }
+
+        fetch("/update_price", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            product_id: productId,
+            selling_price: sellingPrice,
+            cost_price: costPrice,
+          }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            showMessage(data.message, data.success ? "success" : "error");
+            if (data.success) {
+              // 更新本地数据
+              const product = allProducts.find((p) => p.id === productId);
+              if (product) {
+                product.selling_price = sellingPrice;
+                product.cost_price = costPrice;
+              }
+              hidePriceEdit(productId);
+              renderStats();
+              renderStock(allProducts);
+            }
+          })
+          .catch((error) => {
+            showMessage("更新失败，请重试", "error");
+          });
+      }
+
+      function showMessage(text, type) {
+        const messageDiv = document.getElementById("message");
+        messageDiv.textContent = text;
+        messageDiv.className = `message ${type}`;
+        messageDiv.style.display = "block";
+
+        setTimeout(() => {
+          messageDiv.style.display = "none";
+        }, 3000);
       }
     </script>
   </body>
