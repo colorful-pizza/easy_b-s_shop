@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>供应商对账单</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, "Noto Sans", "PingFang SC", "Microsoft Yahei",
+          sans-serif;
+        color: #222;
+      }
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      h1 {
+        font-size: 22px;
+        margin: 0 0 10px;
+        text-align: center;
+      }
+      .meta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        color: #555;
+        margin-bottom: 12px;
+      }
+      .box {
+        border: 1px solid #ddd;
+        padding: 12px;
+        border-radius: 6px;
+        margin-bottom: 16px;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        font-size: 14px;
+      }
+      .row > div {
+        flex: 1 1 260px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      th,
+      td {
+        border: 1px solid #e5e5e5;
+        padding: 6px 8px;
+        text-align: left;
+      }
+      thead th {
+        background: #f7f7f7;
+      }
+      tfoot td {
+        font-weight: bold;
+      }
+      .text-right {
+        text-align: right;
+      }
+      .muted {
+        color: #666;
+      }
+      .small {
+        font-size: 12px;
+      }
+      @media print {
+        .no-print {
+          display: none !important;
+        }
+        body {
+          margin: 0;
+        }
+        .container {
+          padding: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="no-print" style="text-align: right; margin-bottom: 8px">
+        <button onclick="window.print()">打印</button>
+        <button onclick="window.close()">关闭</button>
+      </div>
+      <h1>供应商应付对账单</h1>
+      <div class="meta">
+        <div>打印时间：<span id="now"></span></div>
+        <div class="muted small">仅包含状态为“已交付/已入库”的未结算采购单</div>
+      </div>
+
+      <div class="box">
+        <div class="row">
+          <div><strong>供应商：</strong>{{ supplier.name }}</div>
+          <div>
+            <strong>联系人：</strong>{{ supplier.contact_person or '-' }}
+          </div>
+          <div><strong>电话：</strong>{{ supplier.phone or '-' }}</div>
+          <div><strong>地址：</strong>{{ supplier.address or '-' }}</div>
+        </div>
+      </div>
+
+      <div class="box">
+        <div style="margin-bottom: 8px; font-weight: bold">订单汇总</div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 140px">订单号</th>
+              <th style="width: 90px">状态</th>
+              <th style="width: 120px">金额</th>
+              <th style="width: 160px">申请时间</th>
+              <th style="width: 160px">审批时间</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if orders and orders|length > 0 %} {% for o in orders %}
+            <tr>
+              <td>{{ o.order_no }}</td>
+              <td>
+                {{ '已交付' if o.status == 'delivered' else ('已入库' if
+                o.status == 'stock' else o.status) }}
+              </td>
+              <td class="text-right">¥{{ '%.2f'|format(o.total_amount) }}</td>
+              <td>{{ o.apply_time or '-' }}</td>
+              <td>{{ o.approve_time or '-' }}</td>
+            </tr>
+            {% endfor %} {% else %}
+            <tr>
+              <td colspan="5" class="text-right">暂无未结算订单</td>
+            </tr>
+            {% endif %}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="2">合计</td>
+              <td class="text-right">¥{{ '%.2f'|format(total_amount) }}</td>
+              <td colspan="2"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <div class="box">
+        <div style="margin-bottom: 8px; font-weight: bold">订单明细</div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 140px">订单号</th>
+              <th style="width: 120px">商品编码</th>
+              <th>商品名称</th>
+              <th style="width: 70px">单位</th>
+              <th style="width: 90px">数量</th>
+              <th style="width: 100px">进价</th>
+              <th style="width: 110px">小计</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if details and details|length > 0 %} {% for d in details %}
+            <tr>
+              <td>
+                {% set od = orders | selectattr('id','equalto', d.purchase_id) |
+                list %}{{ (od[0].order_no if od|length>0 else '-') }}
+              </td>
+              <td>{{ d.code or '-' }}</td>
+              <td>{{ d.product_name }}</td>
+              <td>{{ d.unit }}</td>
+              <td class="text-right">{{ d.quantity }}</td>
+              <td class="text-right">¥{{ '%.2f'|format(d.cost_price) }}</td>
+              <td class="text-right">¥{{ '%.2f'|format(d.amount) }}</td>
+            </tr>
+            {% endfor %} {% else %}
+            <tr>
+              <td colspan="7" class="text-right">暂无明细</td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      document.getElementById("now").textContent = new Date().toLocaleString();
+      setTimeout(() => window.print(), 150);
+    </script>
+  </body>
+</html>

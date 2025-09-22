@@ -1,127 +1,22 @@
 # 便利店进销存系统
 
-基于 Flask + MySQL + 原生 HTML 的便利店进销存系统，支持采购订单、销售订单管理。
-![首页截图](https://i.imgur.com/o0EtxTo.jpeg)
+最简 CI 与在线展示说明。
 
-## 功能特性
+## 持续集成（CI）
 
-- 用户登录（店长/店员权限控制）
-- 商品采购管理（订单+明细表结构）
-- 商品销售管理（订单+明细表结构）
-- 库存查询和统计
-- 价格管理（店长可修改进价和售价）
-- 日清月结报表
-- 订单流水记录
+- 已添加 GitHub Actions 工作流：`.github/workflows/ci.yml`
+- 内容：安装最小依赖，语法检查，运行 `ci_smoke_test.py` 访问 `/health`
+- 使用方法：推送到 GitHub 仓库的任意分支，Actions 将自动触发。
 
-## 安装和运行
+## 本地运行（开发）
 
-### 1. 安装依赖
+- 需要 Python 3.10+/3.11
+- 安装依赖：`pip install -r requirements.txt`
+- 启动：`python app.py`，访问 http://localhost:5000
 
-```bash
-pip install -r requirements.txt
-```
+## 在线展示（最简）
 
-### 2. 配置数据库
+- 方案 A：使用 ngrok/Cloudflare Tunnel 暴露本地 5000 端口
+- 方案 B：在云服务器上 `pip install -r requirements.txt` 并 `python app.py`，放行 5000 端口对外访问。
 
-1. 确保 MySQL 服务已启动
-2. 执行 `init_database.sql` 脚本创建数据库和表
-3. 修改 `app.py` 中的数据库配置信息
-
-### 3. 运行项目
-
-```bash
-python app.py
-```
-
-访问 http://localhost:5000
-
-## 测试账号
-
-- 店长：用户名 `manager`，密码 `manager`
-- 店员：用户名 `staff`，密码 `123456`
-
-## 权限说明
-
-### 店员权限
-
-- 商品销售
-- 库存查询（只能看到售价）
-
-### 店长权限
-
-- 商品采购
-- 商品销售
-- 库存管理（可查看进价，修改价格）
-- 日清月结报表
-
-## 系统架构
-
-- 后端：Flask (Python)
-- 前端：原生 HTML + CSS + JavaScript
-- 数据库：MySQL 5.7+
-- 身份验证：Session + MD5 密码加密
-
-## 数据库设计
-
-- **products**: 商品表（包含售价、进价、库存）
-- **users**: 用户表（店长、店员）
-- **purchase_orders**: 采购订单表
-- **purchase_details**: 采购明细表
-- **sales_orders**: 销售订单表
-- **sales_details**: 销售明细表
-
-## 文件结构
-
-```
-bs_shop/
-├── app.py              # Flask主程序
-├── requirements.txt    # Python依赖
-├── init_database.sql   # 数据库初始化脚本
-├── README.md          # 说明文档
-└── templates/         # HTML模板
-    ├── login.html     # 登录页面
-    ├── index.html     # 首页
-    ├── purchase.html  # 商品采购页面
-    ├── sales.html     # 商品销售页面
-    ├── stock.html     # 库存管理页面
-    └── report.html    # 日清月结页面
-```
-
-## 业务流程
-
-### 采购流程
-
-1. 店长登录系统
-2. 进入采购页面
-3. 选择商品和数量，加入采购清单
-4. 确认采购，生成采购订单
-5. 系统自动更新库存和记录流水
-
-### 销售流程
-
-1. 店员/店长登录系统
-2. 进入销售页面
-3. 选择商品和数量，加入销售清单
-4. 确认销售，生成销售订单
-5. 系统自动扣减库存和记录流水
-
-### 价格管理
-
-1. 店长在库存管理页面可以查看商品的进价和售价
-2. 点击"修改价格"按钮可以编辑价格
-3. 保存后实时更新商品价格
-
-### 日清月结
-
-1. 店长登录系统
-2. 进入日清月结页面
-3. 选择日期范围（数据库自带2025-09-03到2025-09-04数据）
-4. 查看采购总额、销售总额、利润等数据
-
-## 注意事项
-
-1. 请确保 MySQL 数据库正常运行
-2. 首次运行前请执行 `init_database.sql` 初始化数据
-3. 修改 `app.py` 中的数据库连接配置
-4. 生产环境请修改 Flask 的 secret_key
-5. 商品图片使用外链，如果无法显示会使用默认占位图
+> 提示：业务接口大多依赖 MySQL，如仅演示页面和健康检查，CI 已不依赖数据库；真实功能需先导入 `init_database.sql` 并可用 `create_test_users.py` 创建测试账号。

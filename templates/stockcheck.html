@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>库存盘点 - 便利店进销存系统</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+  <body>
+    <!-- 顶部导航栏 -->
+    <header class="navbar">
+      <div class="navbar-content">
+        <div class="navbar-brand">
+          <h1>便利店进销存系统</h1>
+        </div>
+        <div class="navbar-user">
+          <a href="/" class="btn btn-secondary" style="margin-right: 10px"
+            >返回首页</a
+          >
+          <span id="userInfo"></span>
+          <button id="logoutBtn" class="btn btn-secondary">退出登录</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="main-container">
+      <!-- 侧边栏 -->
+      <aside class="sidebar">
+        <nav class="sidebar-nav">
+          <ul id="menuList">
+            <!-- 菜单项将通过JavaScript动态生成 -->
+          </ul>
+        </nav>
+      </aside>
+
+      <!-- 主内容区域 -->
+      <main class="content">
+        <div class="content-header">
+          <h2>库存盘点</h2>
+          <div class="breadcrumb">
+            <span>首页 > 库存盘点</span>
+          </div>
+        </div>
+
+        <div class="content-body">
+          <div id="msgArea"></div>
+
+          <div class="action-bar">
+            <div class="search-container">
+              <input
+                type="text"
+                class="search-input"
+                id="searchInput"
+                placeholder="搜索单号/盘点人"
+                onkeyup="doSearch()"
+              />
+              <select
+                class="filter-select"
+                id="statusFilter"
+                onchange="doSearch()"
+              >
+                <option value="">全部状态</option>
+                <option value="ongoing">进行中</option>
+                <option value="completed">已完成</option>
+              </select>
+              <button class="btn btn-primary" onclick="openCreateModal()">
+                新建盘点
+              </button>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 140px">盘点单号</th>
+                  <th>盘点日期</th>
+                  <th>状态</th>
+                  <th>总差异</th>
+                  <th>盘点人</th>
+                  <th>创建时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="checksTableBody"></tbody>
+            </table>
+          </div>
+          <div class="pagination-container">
+            <div class="page-info"><span id="pageInfo">共 0 条记录</span></div>
+            <div class="pagination" id="pagination"></div>
+          </div>
+
+          <!-- 详情面板 -->
+          <div
+            id="detailPanel"
+            class="detail-section"
+            style="display: none; margin-top: 16px"
+          >
+            <h4>盘点详情</h4>
+            <div class="detail-row">
+              <label>单号</label><span id="d_checkNo">-</span>
+            </div>
+            <div class="detail-row">
+              <label>日期</label><span id="d_checkDate">-</span>
+            </div>
+            <div class="detail-row">
+              <label>状态</label><span id="d_status">-</span>
+            </div>
+            <div class="detail-row">
+              <label>盘点人</label><span id="d_user">-</span>
+            </div>
+
+            <div class="action-bar" style="margin-top: 10px">
+              <div class="search-container">
+                <input
+                  type="text"
+                  class="search-input"
+                  id="detailSearch"
+                  placeholder="搜索商品编码/名称"
+                  onkeyup="filterDetails()"
+                />
+                <select
+                  class="filter-select"
+                  id="diffFilter"
+                  onchange="filterDetails()"
+                >
+                  <option value="all">全部</option>
+                  <option value="gain">盘盈</option>
+                  <option value="loss">盘亏</option>
+                  <option value="normal">无差异</option>
+                </select>
+                <button
+                  class="btn btn-secondary"
+                  id="printSheetBtn"
+                  onclick="printCheckSheet()"
+                  disabled
+                >
+                  打印盘点单
+                </button>
+                <button
+                  class="btn btn-secondary"
+                  id="completeBtn"
+                  onclick="completeCheck()"
+                >
+                  完成盘点并调整库存
+                </button>
+              </div>
+            </div>
+
+            <div class="table-container order-detail">
+              <table class="detail-table">
+                <thead>
+                  <tr>
+                    <th style="width: 120px">商品编码</th>
+                    <th>商品名称</th>
+                    <th style="width: 70px">单位</th>
+                    <th style="width: 80px">账面数</th>
+                    <th style="width: 140px">实际数</th>
+                    <th style="width: 80px">差异</th>
+                    <th style="width: 80px">类型</th>
+                  </tr>
+                </thead>
+                <tbody id="detailTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+    <script>
+      let page = 1,
+        size = 10,
+        searchQuery = "",
+        statusQuery = "";
+      let currentCheckId = null;
+      let allDetails = []; // 缓存当前盘点的明细
+
+      document.addEventListener("DOMContentLoaded", function () {
+        initCommonPage("stockcheck");
+        loadChecks();
+      });
+
+      function doSearch() {
+        searchQuery = document.getElementById("searchInput").value.trim();
+        statusQuery = document.getElementById("statusFilter").value;
+        page = 1;
+        loadChecks();
+      }
+
+      async function loadChecks() {
+        const tbody = document.getElementById("checksTableBody");
+        showLoading(tbody);
+        const params = new URLSearchParams({ page, size });
+        if (searchQuery) params.set("search", searchQuery);
+        if (statusQuery) params.set("status", statusQuery);
+        try {
+          const res = await fetch(`/api/inventory-checks?${params.toString()}`);
+          const data = await res.json();
+          if (!data.success) throw new Error(data.message || "加载失败");
+          renderChecksTable(data.data || []);
+          renderPagination(data.pagination);
+          document.getElementById(
+            "pageInfo"
+          ).textContent = `共 ${data.pagination.total} 条记录`;
+        } catch (e) {
+          showError(e.message, document.getElementById("msgArea"));
+        }
+      }
+
+      function renderChecksTable(rows) {
+        const tbody = document.getElementById("checksTableBody");
+        if (!rows.length) {
+          tbody.innerHTML =
+            '<tr><td colspan="7" class="text-center">暂无数据</td></tr>';
+          return;
+        }
+        tbody.innerHTML = rows
+          .map(
+            (r) => `
+          <tr>
+            <td>${r.check_no}</td>
+            <td>${r.check_date}</td>
+            <td><span class="status-badge ${
+              r.status === "ongoing" ? "status-ongoing" : "status-completed"
+            }">${r.status === "ongoing" ? "进行中" : "已完成"}</span></td>
+            <td>${r.total_difference}</td>
+            <td>${r.user_name || "-"}</td>
+            <td>${r.created_at || "-"}</td>
+            <td>
+              <button class="btn btn-secondary" onclick="viewDetail(${
+                r.id
+              })">查看</button>
+            </td>
+          </tr>`
+          )
+          .join("");
+      }
+
+      function renderPagination(p) {
+        const c = document.getElementById("pagination");
+        const { page: cp = 1, total_pages = 1 } = p || {};
+        const btns = [];
+        const add = (label, target, disabled = false, active = false) => {
+          btns.push(
+            `<button class="page-btn ${active ? "active" : ""}" ${
+              disabled ? "disabled" : ""
+            } onclick="gotoPage(${target})">${label}</button>`
+          );
+        };
+        add("上一页", Math.max(1, cp - 1), cp <= 1);
+        for (let i = 1; i <= total_pages; i++) {
+          if (i === 1 || i === total_pages || Math.abs(i - cp) <= 2)
+            add(i, i, false, i === cp);
+          else if (i === cp - 3 || i === cp + 3)
+            btns.push('<span style="padding:0 6px;">...</span>');
+        }
+        add("下一页", Math.min(total_pages, cp + 1), cp >= total_pages);
+        c.innerHTML = btns.join("");
+      }
+      function gotoPage(p) {
+        page = p;
+        loadChecks();
+      }
+
+      // 新建盘点
+      function openCreateModal() {
+        document.getElementById("createModal").style.display = "flex";
+        document.getElementById("checkDate").value = new Date()
+          .toISOString()
+          .substring(0, 10);
+      }
+      function closeCreateModal() {
+        document.getElementById("createModal").style.display = "none";
+      }
+      async function createCheck() {
+        const payload = {
+          check_date: document.getElementById("checkDate").value,
+          remark: document.getElementById("checkRemark").value.trim(),
+        };
+        try {
+          const res = await fetch("/api/inventory-checks", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          if (!data.success) throw new Error(data.message || "创建失败");
+          showSuccess("创建成功", document.getElementById("msgArea"));
+          closeCreateModal();
+          loadChecks();
+        } catch (e) {
+          showError(e.message, document.getElementById("msgArea"));
+        }
+      }
+
+      // 查看详情
+      async function viewDetail(id) {
+        currentCheckId = id;
+        try {
+          const res = await fetch(`/api/inventory-checks/${id}`);
+          const data = await res.json();
+          if (!data.success) throw new Error(data.message || "获取详情失败");
+          const info = data.data.check;
+          allDetails = data.data.details || [];
+          document.getElementById("d_checkNo").textContent = info.check_no;
+          document.getElementById("d_checkDate").textContent = info.check_date;
+          document.getElementById(
+            "d_status"
+          ).innerHTML = `<span class="status-badge ${
+            info.status === "ongoing" ? "status-ongoing" : "status-completed"
+          }">${info.status === "ongoing" ? "进行中" : "已完成"}</span>`;
+          document.getElementById("d_user").textContent = info.user_name || "-";
+          document.getElementById("completeBtn").disabled =
+            info.status !== "ongoing";
+          document.getElementById("printSheetBtn").disabled =
+            info.status !== "ongoing";
+          document.getElementById("detailPanel").style.display = "block";
+          renderDetailTable(allDetails);
+        } catch (e) {
+          showError(e.message, document.getElementById("msgArea"));
+        }
+      }
+
+      function renderDetailTable(list) {
+        const tbody = document.getElementById("detailTableBody");
+        if (!list.length) {
+          tbody.innerHTML =
+            '<tr><td colspan="7" class="text-center">无明细</td></tr>';
+          return;
+        }
+        tbody.innerHTML = list
+          .map((d) => {
+            const editable = document.getElementById("completeBtn").disabled
+              ? "disabled"
+              : "";
+            return `<tr>
+            <td>${d.code || "-"}</td>
+            <td>${d.product_name}</td>
+            <td>${d.unit || ""}</td>
+            <td>${d.book_quantity}</td>
+            <td>
+              <input type="number" min="0" value="${
+                d.actual_quantity
+              }" ${editable} style="width:120px" onchange="updateActual(${
+              d.product_id
+            }, this.value)" />
+            </td>
+            <td>${d.difference}</td>
+            <td>${
+              d.difference_type === "gain"
+                ? "盘盈"
+                : d.difference_type === "loss"
+                ? "盘亏"
+                : "正常"
+            }</td>
+          </tr>`;
+          })
+          .join("");
+      }
+
+      function filterDetails() {
+        const q = document
+          .getElementById("detailSearch")
+          .value.trim()
+          .toLowerCase();
+        const f = document.getElementById("diffFilter").value;
+        const filtered = allDetails.filter((d) => {
+          const matched =
+            (d.code || "").toLowerCase().includes(q) ||
+            (d.product_name || "").toLowerCase().includes(q);
+          const diffOk = f === "all" ? true : d.difference_type === f;
+          return matched && diffOk;
+        });
+        renderDetailTable(filtered);
+      }
+
+      async function updateActual(productId, val) {
+        if (!currentCheckId) return;
+        const v = parseInt(val, 10);
+        if (isNaN(v) || v < 0) {
+          alert("请输入有效的非负整数");
+          return;
+        }
+        try {
+          const res = await fetch(
+            `/api/inventory-checks/${currentCheckId}/update-quantity`,
+            {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                product_id: productId,
+                actual_quantity: v,
+              }),
+            }
+          );
+          const data = await res.json();
+          if (!data.success) throw new Error(data.message || "更新失败");
+          // 同步本地缓存并重渲染
+          allDetails = allDetails.map((d) =>
+            d.product_id === productId
+              ? {
+                  ...d,
+                  actual_quantity: v,
+                  difference: v - d.book_quantity,
+                  difference_type:
+                    v - d.book_quantity > 0
+                      ? "gain"
+                      : v - d.book_quantity < 0
+                      ? "loss"
+                      : "normal",
+                }
+              : d
+          );
+          filterDetails();
+        } catch (e) {
+          showError(e.message, document.getElementById("msgArea"));
+        }
+      }
+
+      async function completeCheck() {
+        if (!currentCheckId) return;
+        if (
+          !confirm(
+            "确认完成盘点？系统将按差异直接调整库存（盘盈增加、盘亏减少）"
+          )
+        )
+          return;
+        try {
+          const res = await fetch(
+            `/api/inventory-checks/${currentCheckId}/complete`,
+            { method: "PUT" }
+          );
+          const data = await res.json();
+          if (!data.success) throw new Error(data.message || "完成失败");
+          showSuccess(data.message, document.getElementById("msgArea"));
+          loadChecks();
+          viewDetail(currentCheckId);
+        } catch (e) {
+          showError(e.message, document.getElementById("msgArea"));
+        }
+      }
+
+      function printCheckSheet() {
+        if (!currentCheckId) return;
+        const url = `/printing/stockcheck/sheet/${currentCheckId}`;
+        window.open(url, "_blank");
+      }
+    </script>
+
+    <!-- 新建盘点模态框 -->
+    <div id="createModal" class="modal" style="display: none">
+      <div class="modal-content" style="max-width: 640px">
+        <div class="modal-header">
+          <h3>新建库存盘点</h3>
+          <span class="close" onclick="closeCreateModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>盘点日期</label>
+              <input type="date" id="checkDate" />
+            </div>
+            <div class="form-group">
+              <label>备注</label>
+              <input type="text" id="checkRemark" placeholder="可选" />
+            </div>
+          </div>
+          <p style="color: #6c757d">
+            创建后会自动生成所有在售商品的盘点明细，实际数量初始等于账面数量。
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeCreateModal()">
+            取消
+          </button>
+          <button class="btn btn-primary" onclick="createCheck()">创建</button>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

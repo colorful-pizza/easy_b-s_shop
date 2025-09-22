@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>报表分析 - 便利店进销存系统</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+  <body>
+    <!-- 顶部导航栏 -->
+    <header class="navbar">
+      <div class="navbar-content">
+        <div class="navbar-brand">
+          <h1>便利店进销存系统</h1>
+        </div>
+        <div class="navbar-user">
+          <a href="/" class="btn btn-secondary" style="margin-right: 10px"
+            >返回首页</a
+          >
+          <span id="userInfo"></span>
+          <button id="logoutBtn" class="btn btn-secondary">退出登录</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="main-container">
+      <!-- 侧边栏 -->
+      <aside class="sidebar">
+        <nav class="sidebar-nav">
+          <ul id="menuList">
+            <!-- 菜单项将通过JavaScript动态生成 -->
+          </ul>
+        </nav>
+      </aside>
+
+      <!-- 主内容区域 -->
+      <main class="content">
+        <div class="content-header">
+          <h2>报表分析</h2>
+          <div class="breadcrumb">
+            <span>首页 > 报表分析</span>
+          </div>
+        </div>
+
+        <div class="content-body">
+          <!-- KPI 概览 -->
+          <div
+            class="cards-grid"
+            style="
+              display: grid;
+              grid-template-columns: repeat(4, 1fr);
+              gap: 12px;
+            "
+          >
+            <div class="card">
+              <div class="card-title">今日销售额</div>
+              <div class="card-value" id="kpiTodaySales">-</div>
+              <div class="card-sub" id="kpiTodayOrders">订单数 -</div>
+            </div>
+            <div class="card">
+              <div class="card-title">昨日销售额</div>
+              <div class="card-value" id="kpiYestSales">-</div>
+              <div class="card-sub" id="kpiYestOrders">订单数 -</div>
+            </div>
+            <div class="card">
+              <div class="card-title">本月销售/利润</div>
+              <div class="card-value" id="kpiMonthSales">-</div>
+              <div class="card-sub" id="kpiMonthProfit">利润 -</div>
+            </div>
+            <div class="card">
+              <div class="card-title">库存总值/预警</div>
+              <div class="card-value" id="kpiInvValue">-</div>
+              <div class="card-sub" id="kpiInvAlert">预警 -</div>
+            </div>
+          </div>
+
+          <!-- 7日销售趋势 + 热销Top10 -->
+          <div
+            style="
+              display: grid;
+              grid-template-columns: 2fr 1fr;
+              gap: 12px;
+              margin-top: 12px;
+            "
+          >
+            <div class="card">
+              <div class="card-title">最近7天销售趋势</div>
+              <div id="trendChart" style="height: 240px; position: relative">
+                <div class="loading" id="trendLoading"></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">热销商品 TOP 10</div>
+              <div
+                class="table-container"
+                style="max-height: 240px; overflow: auto"
+              >
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>商品</th>
+                      <th>数量</th>
+                      <th>销售额</th>
+                    </tr>
+                  </thead>
+                  <tbody id="topProductsBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- 库存报表（总览 + 按分类） -->
+          <div
+            style="
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 12px;
+              margin-top: 12px;
+            "
+          >
+            <div class="card">
+              <div class="card-title">库存总览</div>
+              <div id="invOverview" class="stat-list">
+                <div>商品总数 <span id="ovProducts">-</span></div>
+                <div>在库商品 <span id="ovInStock">-</span></div>
+                <div>零库存 <span id="ovZero">-</span></div>
+                <div>低库存(≤10) <span id="ovLow">-</span></div>
+                <div>总库存量 <span id="ovQty">-</span></div>
+                <div>库存总值 <span id="ovValue">-</span></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">按分类库存价值</div>
+              <div
+                class="table-container"
+                style="max-height: 240px; overflow: auto"
+              >
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>分类</th>
+                      <th>商品数</th>
+                      <th>库存量</th>
+                      <th>库存价值</th>
+                    </tr>
+                  </thead>
+                  <tbody id="invByCategoryBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+    <script>
+      // 页面初始化
+      document.addEventListener("DOMContentLoaded", function () {
+        initCommonPage("reports");
+        loadDashboard();
+        loadInventoryReport();
+      });
+
+      function money(n) {
+        return `¥${parseFloat(n || 0).toFixed(2)}`;
+      }
+      function num(n) {
+        return `${parseInt(n || 0, 10)}`;
+      }
+
+      async function loadDashboard() {
+        try {
+          const res = await fetch("/api/reports/dashboard");
+          const data = await res.json();
+          if (!data.success) throw new Error(data.message || "加载失败");
+          const d = data.data;
+          // KPI
+          document.getElementById("kpiTodaySales").textContent = money(
+            d.today_sales.total_sales
+          );
+          document.getElementById("kpiTodayOrders").textContent = `订单数 ${num(
+            d.today_sales.order_count
+          )}`;
+          document.getElementById("kpiYestSales").textContent = money(
+            d.yesterday_sales.total_sales
+          );
+          document.getElementById("kpiYestOrders").textContent = `订单数 ${num(
+            d.yesterday_sales.order_count
+          )}`;
+          document.getElementById("kpiMonthSales").textContent = money(
+            d.this_month_sales.total_sales
+          );
+          document.getElementById("kpiMonthProfit").textContent = `利润 ${money(
+            d.this_month_sales.total_profit
+          )}`;
+          const alerts =
+            (d.inventory_stats.zero_stock || 0) +
+            (d.inventory_stats.low_stock || 0);
+          document.getElementById("kpiInvValue").textContent = money(
+            d.inventory_stats.total_inventory_value
+          );
+          document.getElementById("kpiInvAlert").textContent = `预警 ${num(
+            alerts
+          )}`;
+
+          // 趋势图（简单SVG折线图，避免外部依赖）
+          renderTrend(d.sales_trend || []);
+
+          // Top10
+          const topBody = document.getElementById("topProductsBody");
+          if (!d.top_products || d.top_products.length === 0) {
+            topBody.innerHTML =
+              '<tr><td colspan="3" class="text-center">暂无数据</td></tr>';
+          } else {
+            topBody.innerHTML = d.top_products
+              .map(
+                (p) => `<tr>
+              <td>${p.name}</td>
+              <td>${p.total_quantity}</td>
+              <td>${money(p.total_sales)}</td>
+            </tr>`
+              )
+              .join("");
+          }
+        } catch (e) {
+          console.error(e);
+          const el = document.getElementById("trendChart");
+          if (el)
+            el.innerHTML = `<div class="error-message">${e.message}</div>`;
+        }
+      }
+
+      function renderTrend(list) {
+        const el = document.getElementById("trendChart");
+        if (!el) return;
+        if (!list || list.length === 0) {
+          el.innerHTML =
+            '<div class="text-center muted" style="padding:24px;">暂无趋势数据</div>';
+          return;
+        }
+        const w = el.clientWidth || 600,
+          h = 220,
+          pad = 30;
+        const xs = list.map((x) => x.sale_date);
+        const ys = list.map((x) => x.total_sales || 0);
+        const maxY = Math.max(...ys, 1);
+        const stepX = (w - pad * 2) / (list.length - 1 || 1);
+        const toX = (i) => pad + i * stepX;
+        const toY = (v) => pad + (h - pad * 2) * (1 - v / maxY);
+        let path = "";
+        ys.forEach((v, i) => {
+          const x = toX(i),
+            y = toY(v);
+          path += i === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`;
+        });
+        const points = ys
+          .map(
+            (v, i) =>
+              `<circle cx="${toX(i)}" cy="${toY(v)}" r="2" fill="#3b82f6" />`
+          )
+          .join("");
+        const xlabels = xs
+          .map(
+            (t, i) =>
+              `<text x="${toX(i)}" y="${
+                h - 6
+              }" text-anchor="middle" fill="#666" font-size="10">${t.slice(
+                5
+              )}</text>`
+          )
+          .join("");
+        el.innerHTML = `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}">
+          <rect x="0" y="0" width="${w}" height="${h}" fill="white" />
+          <path d="${path}" fill="none" stroke="#3b82f6" stroke-width="2" />
+          ${points}
+          ${xlabels}
+        </svg>`;
+      }
+
+      async function loadInventoryReport() {
+        try {
+          const res = await fetch("/api/reports/inventory");
+          const data = await res.json();
+          if (!data.success) throw new Error(data.message || "加载失败");
+          const d = data.data;
+          const ov = d.overview;
+          document.getElementById("ovProducts").textContent = num(
+            ov.total_products
+          );
+          document.getElementById("ovInStock").textContent = num(
+            ov.in_stock_products
+          );
+          document.getElementById("ovZero").textContent = num(
+            ov.out_of_stock_products
+          );
+          document.getElementById("ovLow").textContent = num(
+            ov.low_stock_products
+          );
+          document.getElementById("ovQty").textContent = num(ov.total_quantity);
+          document.getElementById("ovValue").textContent = money(
+            ov.total_value
+          );
+
+          const catBody = document.getElementById("invByCategoryBody");
+          const cats = d.by_category || [];
+          if (cats.length === 0) {
+            catBody.innerHTML =
+              '<tr><td colspan="4" class="text-center">暂无数据</td></tr>';
+          } else {
+            catBody.innerHTML = cats
+              .map(
+                (c) => `<tr>
+              <td>${c.category}</td>
+              <td>${c.product_count}</td>
+              <td>${c.total_quantity}</td>
+              <td>${money(c.total_value)}</td>
+            </tr>`
+              )
+              .join("");
+          }
+        } catch (e) {
+          const body = document.getElementById("invOverview");
+          if (body)
+            body.innerHTML = `<div class="error-message">${e.message}</div>`;
+        }
+      }
+    </script>
+  </body>
+</html>

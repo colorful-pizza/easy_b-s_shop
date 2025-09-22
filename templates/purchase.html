@@ -3,376 +3,1125 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>商品进货 - 便利店进销存系统</title>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 0;
-        background-color: #f5f5f5;
-      }
-      .header {
-        background-color: #007bff;
-        color: white;
-        padding: 15px 20px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-      .back-btn {
-        background-color: #6c757d;
-        color: white;
-        padding: 8px 15px;
-        text-decoration: none;
-        border-radius: 4px;
-      }
-      .container {
-        max-width: 1200px;
-        margin: 20px auto;
-        padding: 0 20px;
-      }
-      .products-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 15px;
-        margin-bottom: 30px;
-      }
-      .product-card {
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
-      }
-      .product-image {
-        width: 100%;
-        height: 120px;
-        object-fit: cover;
-      }
-      .product-info {
-        padding: 15px;
-      }
-      .product-name {
-        font-weight: bold;
-        margin-bottom: 5px;
-      }
-      .product-prices {
-        margin-bottom: 10px;
-      }
-      .cost-price {
-        color: #dc3545;
-        font-size: 16px;
-      }
-      .selling-price {
-        color: #28a745;
-        font-size: 14px;
-      }
-      .product-stock {
-        color: #666;
-        font-size: 14px;
-        margin-bottom: 10px;
-      }
-      .action-controls {
-        display: flex;
-        gap: 5px;
-        align-items: center;
-      }
-      .quantity-input {
-        width: 50px;
-        padding: 5px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        text-align: center;
-      }
-      .purchase-btn {
-        padding: 8px 12px;
-        background-color: #28a745;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 12px;
-      }
-      .cart {
-        background: white;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        position: sticky;
-        top: 20px;
-      }
-      .cart-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 0;
-        border-bottom: 1px solid #eee;
-      }
-      .cart-item-info {
-        flex: 1;
-      }
-      .cart-item-name {
-        font-weight: bold;
-      }
-      .cart-item-details {
-        font-size: 12px;
-        color: #666;
-      }
-      .cart-amount {
-        color: #dc3545;
-        font-weight: bold;
-        margin: 0 10px;
-      }
-      .remove-btn {
-        background: none;
-        border: none;
-        color: #dc3545;
-        cursor: pointer;
-        font-size: 12px;
-      }
-      .cart-total {
-        border-top: 2px solid #007bff;
-        padding-top: 15px;
-        margin-top: 15px;
-      }
-      .total-amount {
-        font-size: 18px;
-        font-weight: bold;
-        color: #007bff;
-        text-align: center;
-      }
-      .submit-btn {
-        width: 100%;
-        padding: 12px;
-        background-color: #007bff;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 16px;
-        margin-top: 15px;
-      }
-      .submit-btn:hover {
-        background-color: #0056b3;
-      }
-      .message {
-        padding: 10px;
-        margin: 10px 0;
-        border-radius: 4px;
-        display: none;
-      }
-      .message.success {
-        background-color: #d4edda;
-        color: #155724;
-        border: 1px solid #c3e6cb;
-      }
-      .message.error {
-        background-color: #f8d7da;
-        color: #721c24;
-        border: 1px solid #f5c6cb;
-      }
-      .main-content {
-        display: grid;
-        grid-template-columns: 1fr 300px;
-        gap: 20px;
-      }
-      @media (max-width: 768px) {
-        .main-content {
-          grid-template-columns: 1fr;
-        }
-      }
-    </style>
+    <title>采购管理 - 便利店进销存系统</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
   </head>
   <body>
-    <div class="header">
-      <h1>商品进货</h1>
-      <a href="/" class="back-btn">返回首页</a>
-    </div>
+    <!-- 顶部导航栏 -->
+    <header class="navbar">
+      <div class="navbar-content">
+        <div class="navbar-brand">
+          <h1>便利店进销存系统</h1>
+        </div>
+        <div class="navbar-user">
+          <a href="/" class="btn btn-secondary" style="margin-right: 10px"
+            >返回首页</a
+          >
+          <span id="userInfo"></span>
+          <button id="logoutBtn" class="btn btn-secondary">退出登录</button>
+        </div>
+      </div>
+    </header>
 
-    <div class="container">
-      <div id="message" class="message"></div>
+    <div class="main-container">
+      <!-- 侧边栏 -->
+      <aside class="sidebar">
+        <nav class="sidebar-nav">
+          <ul id="menuList">
+            <!-- 菜单项将通过JavaScript动态生成 -->
+          </ul>
+        </nav>
+      </aside>
 
-      <div class="main-content">
-        <div>
-          <h3>商品列表</h3>
-          <div id="products-grid" class="products-grid">
-            <!-- 商品列表将通过JavaScript加载 -->
+      <!-- 主内容区域 -->
+      <main class="content">
+        <div class="content-header">
+          <h2>采购管理</h2>
+          <div class="breadcrumb">
+            <span>首页 > 采购管理</span>
           </div>
         </div>
 
-        <div class="cart">
-          <h3>采购清单</h3>
-          <div id="cart-items"></div>
-          <div class="cart-total">
-            <div class="total-amount">
-              总金额: ¥<span id="total-amount">0.00</span>
+        <div class="content-body">
+          <!-- 操作栏 -->
+          <div class="action-bar">
+            <button class="btn btn-primary" onclick="openCreateOrderModal()">
+              <i class="icon-plus"></i> 新增采购订单
+            </button>
+            <div class="search-container">
+              <input
+                type="text"
+                class="search-input"
+                id="searchInput"
+                placeholder="搜索订单号、供应商、申请人"
+                onkeyup="handleSearch()"
+              />
+              <select
+                class="filter-select"
+                id="statusFilter"
+                onchange="handleFilter()"
+              >
+                <option value="">所有状态</option>
+                <option value="pending">待定</option>
+                <option value="approved">已批准</option>
+                <option value="stock">已入库</option>
+                <option value="delivered">已交付</option>
+                <option value="paid">已付款</option>
+                <option value="cancelled">已取消</option>
+              </select>
+              <select
+                class="filter-select"
+                id="supplierFilter"
+                onchange="handleFilter()"
+              >
+                <option value="">所有供应商</option>
+                <!-- 动态加载供应商选项 -->
+              </select>
             </div>
-            <button id="submit-btn" class="submit-btn">提交采购</button>
           </div>
+
+          <!-- 数据表格 -->
+          <div class="table-container">
+            <table class="data-table" id="purchaseTable">
+              <thead>
+                <tr>
+                  <th>订单号</th>
+                  <th>供应商</th>
+                  <th>状态</th>
+                  <th>总金额</th>
+                  <th>申请人</th>
+                  <th>申请时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="purchaseTableBody">
+                <!-- 数据将通过JavaScript动态加载 -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 分页控件 -->
+          <div class="pagination-container">
+            <div class="page-info">
+              <span id="pageInfo">共 0 条记录</span>
+            </div>
+            <div class="pagination" id="pagination">
+              <!-- 分页按钮将通过JavaScript动态生成 -->
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- 新增/编辑采购订单模态框 -->
+    <div id="orderModal" class="modal" style="display: none">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="orderModalTitle">新增采购订单</h3>
+          <span class="close" onclick="closeOrderModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+          <form id="orderForm">
+            <input type="hidden" id="orderId" name="id" />
+
+            <!-- 基本信息 -->
+            <div class="form-row">
+              <div class="form-group">
+                <label for="supplierSelect">供应商 *</label>
+                <select id="supplierSelect" name="supplier_id" required>
+                  <option value="">请选择供应商</option>
+                  <!-- 动态加载供应商选项 -->
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="orderRemark">备注</label>
+                <textarea
+                  id="orderRemark"
+                  name="remark"
+                  placeholder="请输入备注信息"
+                ></textarea>
+              </div>
+            </div>
+
+            <!-- 商品明细 -->
+            <div class="form-group">
+              <label>商品明细</label>
+              <div class="products-section">
+                <button
+                  type="button"
+                  class="btn btn-secondary"
+                  onclick="openProductSelector()"
+                >
+                  <i class="icon-plus"></i> 添加商品
+                </button>
+                <div class="products-table-container">
+                  <table class="products-table" id="productsTable">
+                    <thead>
+                      <tr>
+                        <th>商品编码</th>
+                        <th>商品名称</th>
+                        <th>单位</th>
+                        <th>采购数量</th>
+                        <th>采购单价</th>
+                        <th>小计</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody id="productsTableBody">
+                      <!-- 商品明细将通过JavaScript动态生成 -->
+                    </tbody>
+                  </table>
+                </div>
+                <div class="total-section">
+                  <span class="total-label">订单总金额：</span>
+                  <span class="total-amount" id="totalAmount">￥0.00</span>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            onclick="closeOrderModal()"
+          >
+            取消
+          </button>
+          <button type="button" class="btn btn-primary" onclick="saveOrder()">
+            保存
+          </button>
         </div>
       </div>
     </div>
 
-    <script>
-      let products = [];
-      let cart = [];
+    <!-- 商品选择模态框 -->
+    <div id="productSelectorModal" class="modal" style="display: none">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>选择采购商品</h3>
+          <span class="close" onclick="closeProductSelector()">&times;</span>
+        </div>
+        <div class="modal-body">
+          <div class="search-container">
+            <input
+              type="text"
+              class="search-input"
+              id="productSearchInput"
+              placeholder="搜索商品名称或编码"
+              onkeyup="handleProductSearch()"
+            />
+            <select
+              class="filter-select"
+              id="categoryFilter"
+              onchange="handleProductFilter()"
+            >
+              <option value="">所有分类</option>
+              <!-- 动态加载分类选项 -->
+            </select>
+          </div>
 
-      // 页面加载时获取商品列表
+          <div class="products-list" id="productsList">
+            <!-- 商品列表将通过JavaScript动态生成 -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            onclick="closeProductSelector()"
+          >
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 订单详情查看模态框 -->
+    <div id="orderDetailModal" class="modal" style="display: none">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>采购订单详情</h3>
+          <span class="close" onclick="closeOrderDetailModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+          <div id="orderDetailContent">
+            <!-- 订单详情将通过JavaScript动态生成 -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            onclick="closeOrderDetailModal()"
+          >
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 加载覆盖层 -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">加载中...</div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+    <script>
+      // 全局变量
+      let currentPage = 1;
+      let pageSize = 10;
+      let searchQuery = "";
+      let statusFilter = "";
+      let supplierFilter = "";
+      let suppliers = [];
+      let categories = [];
+      let products = [];
+      let selectedProducts = [];
+      let isEditMode = false;
+      let currentOrderId = null;
+
+      // 状态映射
+      const statusMap = {
+        pending: { text: "待定", class: "status-pending" },
+        approved: { text: "已批准", class: "status-approved" },
+        delivered: { text: "已交付", class: "status-delivered" },
+        stock: { text: "已入库", class: "status-stock" },
+        paid: { text: "已付款", class: "status-paid" },
+        cancelled: { text: "已取消", class: "status-cancelled" },
+      };
+
+      // 页面初始化
       document.addEventListener("DOMContentLoaded", function () {
-        loadProducts();
+        initCommonPage("purchase");
+        loadInitialData();
       });
 
-      function loadProducts() {
-        fetch("/products")
-          .then((response) => response.json())
-          .then((data) => {
-            if (data.success) {
-              products = data.products;
-              renderProducts();
-            }
-          })
-          .catch((error) => {
-            showMessage("加载商品失败", "error");
-          });
+      // 加载初始数据
+      async function loadInitialData() {
+        await Promise.all([
+          loadSuppliers(),
+          loadCategories(),
+          loadProducts(),
+          loadPurchaseOrders(),
+        ]);
       }
 
-      function renderProducts() {
-        const grid = document.getElementById("products-grid");
-        grid.innerHTML = "";
+      // 加载供应商列表
+      async function loadSuppliers() {
+        try {
+          const response = await fetch(
+            "/api/suppliers?size=1000&status=active",
+            {
+              headers: {
+                Authorization: "Bearer " + localStorage.getItem("token"),
+              },
+            }
+          );
+          const data = await response.json();
 
-        products.forEach((product) => {
-          const productCard = document.createElement("div");
-          productCard.className = "product-card";
-          productCard.innerHTML = `
-                    <img src="${product.image_url}" alt="${product.name}" class="product-image" 
-                         onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuaXoOWbvueJhzwvdGV4dD48L3N2Zz4='">
-                    <div class="product-info">
-                        <div class="product-name">${product.name}</div>
-                        <div class="product-prices">
-                            <div class="cost-price">进价: ¥${product.cost_price}</div>
-                            <div class="selling-price">售价: ¥${product.selling_price}</div>
-                        </div>
-                        <div class="product-stock">当前库存: ${product.stock}</div>
-                        <div class="action-controls">
-                            <input type="number" class="quantity-input" value="1" min="1" max="999" id="qty-${product.id}">
-                            <button class="purchase-btn" onclick="addToCart(${product.id})">进货</button>
-                        </div>
-                    </div>
-                `;
-          grid.appendChild(productCard);
+          if (data.success) {
+            suppliers = data.data;
+            updateSupplierSelects();
+          }
+        } catch (error) {
+          console.error("加载供应商失败:", error);
+        }
+      }
+
+      // 更新供应商下拉框
+      function updateSupplierSelects() {
+        const supplierSelect = document.getElementById("supplierSelect");
+        const supplierFilter = document.getElementById("supplierFilter");
+
+        // 清空现有选项
+        supplierSelect.innerHTML = '<option value="">请选择供应商</option>';
+        supplierFilter.innerHTML = '<option value="">所有供应商</option>';
+
+        // 添加供应商选项
+        suppliers.forEach((supplier) => {
+          const option1 = new Option(supplier.name, supplier.id);
+          const option2 = new Option(supplier.name, supplier.id);
+          supplierSelect.appendChild(option1);
+          supplierFilter.appendChild(option2);
         });
       }
 
-      function addToCart(productId) {
-        const qtyInput = document.getElementById(`qty-${productId}`);
-        const quantity = parseInt(qtyInput.value);
+      // 加载商品分类
+      async function loadCategories() {
+        try {
+          const response = await fetch("/api/categories", {
+            headers: {
+              Authorization: "Bearer " + localStorage.getItem("token"),
+            },
+          });
+          const data = await response.json();
 
-        if (quantity <= 0) {
-          showMessage("数量必须大于0", "error");
+          if (data.success) {
+            categories = data.data;
+            updateCategorySelect();
+          }
+        } catch (error) {
+          console.error("加载分类失败:", error);
+        }
+      }
+
+      // 更新分类下拉框
+      function updateCategorySelect() {
+        const categoryFilter = document.getElementById("categoryFilter");
+        categoryFilter.innerHTML = '<option value="">所有分类</option>';
+
+        categories.forEach((category) => {
+          const option = new Option(category.name, category.id);
+          categoryFilter.appendChild(option);
+        });
+      }
+
+      // 加载商品列表
+      async function loadProducts() {
+        try {
+          const response = await fetch(
+            "/api/products?size=1000&status=active",
+            {
+              headers: {
+                Authorization: "Bearer " + localStorage.getItem("token"),
+              },
+            }
+          );
+          const data = await response.json();
+
+          if (data.success) {
+            products = data.data;
+          }
+        } catch (error) {
+          console.error("加载商品失败:", error);
+        }
+      }
+
+      // 加载采购订单列表
+      async function loadPurchaseOrders() {
+        showLoading();
+        try {
+          const params = new URLSearchParams({
+            page: currentPage,
+            size: pageSize,
+          });
+
+          if (searchQuery) params.append("search", searchQuery);
+          if (statusFilter) params.append("status", statusFilter);
+          if (supplierFilter) params.append("supplier_id", supplierFilter);
+
+          const response = await fetch(`/api/purchase-orders?${params}`, {
+            headers: {
+              Authorization: "Bearer " + localStorage.getItem("token"),
+            },
+          });
+          const data = await response.json();
+
+          if (data.success) {
+            renderPurchaseTable(data.data);
+            renderPagination(data.pagination);
+          } else {
+            showError(data.message || "加载采购订单失败");
+          }
+        } catch (error) {
+          showError("网络错误: " + error.message);
+        } finally {
+          hideLoading();
+        }
+      }
+
+      // 渲染采购订单表格
+      function renderPurchaseTable(orders) {
+        const tbody = document.getElementById("purchaseTableBody");
+
+        if (orders.length === 0) {
+          tbody.innerHTML =
+            '<tr><td colspan="7" class="text-center">暂无数据</td></tr>';
           return;
         }
 
-        const product = products.find((p) => p.id === productId);
-        if (!product) return;
+        tbody.innerHTML = orders
+          .map(
+            (order) => `
+          <tr>
+            <td>${order.order_no}</td>
+            <td>${order.supplier_name || "未知供应商"}</td>
+            <td>
+              <span class="status-badge ${
+                statusMap[order.status]?.class || "status-unknown"
+              }">
+                ${statusMap[order.status]?.text || order.status}
+              </span>
+            </td>
+            <td>￥${parseFloat(order.total_amount || 0).toFixed(2)}</td>
+            <td>${order.apply_user_name || "未知用户"}</td>
+            <td>${order.apply_time || ""}</td>
+            <td>
+              <div class="action-buttons">
+                <button class="btn-link" onclick="viewOrderDetail(${
+                  order.id
+                })" title="查看详情">
+                  👁️
+                </button>
+                ${
+                  order.status === "pending"
+                    ? `
+                  <button class="btn-link" onclick="editOrder(${order.id})" title="编辑">
+                    ✏️
+                  </button>
+                  <button class="btn-link" onclick="deleteOrder(${order.id})" title="删除">
+                    🗑️
+                  </button>
+                `
+                    : ""
+                }
+                ${getNextStepButton(order)}
+                ${getPrintButton(order)}
+                ${
+                  order.status === "pending" || order.status === "approved"
+                    ? `
+                  <button class="btn-link" onclick="cancelOrder(${order.id})" title="取消">
+                    ❌
+                  </button>
+                `
+                    : ""
+                }
+              </div>
+            </td>
+          </tr>
+        `
+          )
+          .join("");
+      }
 
-        // 检查购物车中是否已有相同商品
-        const existingIndex = cart.findIndex(
-          (item) => item.product_id === productId
-        );
+      // 获取下一步按钮
+      function getNextStepButton(order) {
+        switch (order.status) {
+          case "pending":
+            return `<button class="btn-link" onclick="nextStep(${order.id}, 'approve')" title="批准">✅</button>`;
+          case "approved":
+            return `<button class="btn-link" onclick="nextStep(${order.id}, 'deliver')" title="标记为已交付">📦</button>`;
+          default:
+            return "";
+        }
+      }
 
-        if (existingIndex >= 0) {
-          cart[existingIndex].quantity += quantity;
-          cart[existingIndex].amount =
-            cart[existingIndex].quantity * product.cost_price;
+      // 获取打印按钮：pending 打印申请单，approved 打印采购订单
+      function getPrintButton(order) {
+        if (order.status === "pending") {
+          return `<button class="btn-link" onclick="printPurchase(${order.id}, 'pending')" title="打印申请单">🖨️</button>`;
+        }
+        if (order.status === "approved") {
+          return `<button class="btn-link" onclick="printPurchase(${order.id}, 'approved')" title="打印采购订单">🖨️</button>`;
+        }
+        return "";
+      }
+
+      // 打印处理：打开新窗口到打印页
+      function printPurchase(orderId, status) {
+        let url = "";
+        if (status === "pending") {
+          url = `/printing/purchase/apply/${orderId}`;
+        } else if (status === "approved") {
+          url = `/printing/purchase/order/${orderId}`;
         } else {
-          cart.push({
-            product_id: productId,
-            product_name: product.name,
-            quantity: quantity,
-            cost_price: product.cost_price,
-            amount: quantity * product.cost_price,
-          });
+          return;
+        }
+        window.open(url, "_blank");
+      }
+
+      // 渲染分页控件
+      function renderPagination(pagination) {
+        document.getElementById(
+          "pageInfo"
+        ).textContent = `共 ${pagination.total} 条记录，第 ${pagination.page} / ${pagination.total_pages} 页`;
+
+        const paginationEl = document.getElementById("pagination");
+        let paginationHTML = "";
+
+        // 上一页
+        if (pagination.has_prev) {
+          paginationHTML += `<button class="page-btn" onclick="changePage(${
+            pagination.page - 1
+          })">上一页</button>`;
         }
 
-        renderCart();
-        qtyInput.value = 1; // 重置数量输入框
+        // 页码
+        const startPage = Math.max(1, pagination.page - 2);
+        const endPage = Math.min(pagination.total_pages, pagination.page + 2);
+
+        for (let i = startPage; i <= endPage; i++) {
+          paginationHTML += `<button class="page-btn ${
+            i === pagination.page ? "active" : ""
+          }" onclick="changePage(${i})">${i}</button>`;
+        }
+
+        // 下一页
+        if (pagination.has_next) {
+          paginationHTML += `<button class="page-btn" onclick="changePage(${
+            pagination.page + 1
+          })">下一页</button>`;
+        }
+
+        paginationEl.innerHTML = paginationHTML;
       }
 
-      function renderCart() {
-        const cartItems = document.getElementById("cart-items");
-        const totalAmountSpan = document.getElementById("total-amount");
-
-        cartItems.innerHTML = "";
-        let totalAmount = 0;
-
-        cart.forEach((item, index) => {
-          totalAmount += item.amount;
-
-          const cartItem = document.createElement("div");
-          cartItem.className = "cart-item";
-          cartItem.innerHTML = `
-                    <div class="cart-item-info">
-                        <div class="cart-item-name">${item.product_name}</div>
-                        <div class="cart-item-details">
-                            ¥${item.cost_price} × ${item.quantity}
-                        </div>
-                    </div>
-                    <div class="cart-amount">¥${item.amount.toFixed(2)}</div>
-                    <button class="remove-btn" onclick="removeFromCart(${index})">删除</button>
-                `;
-          cartItems.appendChild(cartItem);
-        });
-
-        totalAmountSpan.textContent = totalAmount.toFixed(2);
+      // 页面跳转
+      function changePage(page) {
+        currentPage = page;
+        loadPurchaseOrders();
       }
 
-      function removeFromCart(index) {
-        cart.splice(index, 1);
-        renderCart();
+      // 搜索处理
+      function handleSearch() {
+        searchQuery = document.getElementById("searchInput").value.trim();
+        currentPage = 1;
+        loadPurchaseOrders();
       }
 
-      document
-        .getElementById("submit-btn")
-        .addEventListener("click", function () {
-          if (cart.length === 0) {
-            showMessage("请先添加采购商品", "error");
+      // 筛选处理
+      function handleFilter() {
+        statusFilter = document.getElementById("statusFilter").value;
+        supplierFilter = document.getElementById("supplierFilter").value;
+        currentPage = 1;
+        loadPurchaseOrders();
+      }
+
+      // 显示/隐藏加载状态
+      function showLoading() {
+        document.getElementById("loadingOverlay").style.display = "flex";
+      }
+
+      function hideLoading() {
+        document.getElementById("loadingOverlay").style.display = "none";
+      }
+
+      // 打开新增订单模态框
+      function openCreateOrderModal() {
+        isEditMode = false;
+        currentOrderId = null;
+        document.getElementById("orderModalTitle").textContent = "新增采购订单";
+        document.getElementById("orderForm").reset();
+        document.getElementById("orderId").value = "";
+        selectedProducts = [];
+        renderProductsTable();
+        updateTotalAmount();
+        document.getElementById("orderModal").style.display = "flex";
+      }
+
+      // 关闭订单模态框
+      function closeOrderModal() {
+        document.getElementById("orderModal").style.display = "none";
+      }
+
+      // 编辑订单
+      async function editOrder(orderId) {
+        try {
+          const response = await fetch(`/api/purchase-orders/${orderId}`, {
+            headers: {
+              Authorization: "Bearer " + localStorage.getItem("token"),
+            },
+          });
+          const data = await response.json();
+
+          if (data.success) {
+            isEditMode = true;
+            currentOrderId = orderId;
+
+            // 填充表单
+            document.getElementById("orderModalTitle").textContent =
+              "编辑采购订单";
+            document.getElementById("orderId").value = data.data.order.id;
+            document.getElementById("supplierSelect").value =
+              data.data.order.supplier_id;
+            document.getElementById("orderRemark").value =
+              data.data.order.remark || "";
+
+            // 填充商品明细
+            selectedProducts = data.data.details.map((detail) => ({
+              id: detail.product_id,
+              code: detail.code,
+              name: detail.product_name,
+              unit: detail.unit,
+              quantity: detail.quantity,
+              cost_price: detail.cost_price,
+              amount: detail.amount,
+              remark: detail.remark,
+            }));
+
+            renderProductsTable();
+            updateTotalAmount();
+            document.getElementById("orderModal").style.display = "flex";
+          } else {
+            showError(data.message || "获取订单详情失败");
+          }
+        } catch (error) {
+          showError("网络错误: " + error.message);
+        }
+      }
+
+      // 查看订单详情
+      async function viewOrderDetail(orderId) {
+        try {
+          const response = await fetch(`/api/purchase-orders/${orderId}`, {
+            headers: {
+              Authorization: "Bearer " + localStorage.getItem("token"),
+            },
+          });
+          const data = await response.json();
+
+          if (data.success) {
+            // 后端返回的数据结构是 { data: { order: {...}, details: [...] } }
+            // 需要重新组织数据结构
+            const orderData = {
+              ...data.data.order,
+              details: data.data.details,
+            };
+            renderOrderDetail(orderData);
+            document.getElementById("orderDetailModal").style.display = "flex";
+          } else {
+            showError(data.message || "获取订单详情失败");
+          }
+        } catch (error) {
+          showError("网络错误: " + error.message);
+        }
+      }
+
+      // 渲染订单详情
+      function renderOrderDetail(order) {
+        const content = document.getElementById("orderDetailContent");
+        content.innerHTML = `
+          <div class="order-detail">
+            <div class="detail-section">
+              <h4>基本信息</h4>
+              <div class="detail-row">
+                <label>订单号:</label>
+                <span>${order.order_no}</span>
+              </div>
+              <div class="detail-row">
+                <label>供应商:</label>
+                <span>${order.supplier_name || "未知供应商"}</span>
+              </div>
+              <div class="detail-row">
+                <label>状态:</label>
+                <span class="status-badge ${
+                  statusMap[order.status]?.class || "status-unknown"
+                }">
+                  ${statusMap[order.status]?.text || order.status}
+                </span>
+              </div>
+              <div class="detail-row">
+                <label>总金额:</label>
+                <span>￥${parseFloat(order.total_amount || 0).toFixed(2)}</span>
+              </div>
+              <div class="detail-row">
+                <label>申请人:</label>
+                <span>${order.apply_user_name || "未知用户"}</span>
+              </div>
+              <div class="detail-row">
+                <label>申请时间:</label>
+                <span>${order.apply_time || ""}</span>
+              </div>
+              ${
+                order.approve_user_name
+                  ? `
+                <div class="detail-row">
+                  <label>批准人:</label>
+                  <span>${order.approve_user_name}</span>
+                </div>
+                <div class="detail-row">
+                  <label>批准时间:</label>
+                  <span>${order.approve_time || ""}</span>
+                </div>
+              `
+                  : ""
+              }
+              ${
+                order.remark
+                  ? `
+                <div class="detail-row">
+                  <label>备注:</label>
+                  <span>${order.remark}</span>
+                </div>
+              `
+                  : ""
+              }
+            </div>
+            
+            <div class="detail-section">
+              <h4>商品明细</h4>
+              <table class="detail-table">
+                <thead>
+                  <tr>
+                    <th>商品编码</th>
+                    <th>商品名称</th>
+                    <th>单位</th>
+                    <th>数量</th>
+                    <th>单价</th>
+                    <th>小计</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${order.details
+                    .map(
+                      (detail) => `
+                    <tr>
+                      <td>${detail.code}</td>
+                      <td>${detail.product_name}</td>
+                      <td>${detail.unit}</td>
+                      <td>${detail.quantity}</td>
+                      <td>￥${parseFloat(detail.cost_price).toFixed(2)}</td>
+                      <td>￥${parseFloat(detail.amount).toFixed(2)}</td>
+                    </tr>
+                  `
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      }
+
+      // 关闭订单详情模态框
+      function closeOrderDetailModal() {
+        document.getElementById("orderDetailModal").style.display = "none";
+      }
+
+      // 下一步操作
+      async function nextStep(orderId, action) {
+        const confirmMessages = {
+          approve: "确定要批准这个采购订单吗？",
+          deliver: "确定要标记为已交付吗？",
+        };
+
+        if (!confirm(confirmMessages[action])) return;
+
+        try {
+          const endpoint = action === "approve" ? "approve" : "deliver";
+          const response = await fetch(
+            `/api/purchase-orders/${orderId}/${endpoint}`,
+            {
+              method: "PUT",
+              headers: {
+                Authorization: "Bearer " + localStorage.getItem("token"),
+                "Content-Type": "application/json",
+              },
+            }
+          );
+
+          const data = await response.json();
+          if (data.success) {
+            showSuccess(data.message || "操作成功");
+            loadPurchaseOrders();
+          } else {
+            showError(data.message || "操作失败");
+          }
+        } catch (error) {
+          showError("网络错误: " + error.message);
+        }
+      }
+
+      // 取消订单
+      async function cancelOrder(orderId) {
+        if (!confirm("确定要取消这个采购订单吗？")) return;
+
+        try {
+          const response = await fetch(
+            `/api/purchase-orders/${orderId}/reject`,
+            {
+              method: "PUT",
+              headers: {
+                Authorization: "Bearer " + localStorage.getItem("token"),
+                "Content-Type": "application/json",
+              },
+            }
+          );
+
+          const data = await response.json();
+          if (data.success) {
+            showSuccess("订单已取消");
+            loadPurchaseOrders();
+          } else {
+            showError(data.message || "取消失败");
+          }
+        } catch (error) {
+          showError("网络错误: " + error.message);
+        }
+      }
+
+      // 删除订单
+      async function deleteOrder(orderId) {
+        if (!confirm("确定要删除这个采购订单吗？删除后无法恢复！")) return;
+
+        try {
+          const response = await fetch(`/api/purchase-orders/${orderId}`, {
+            method: "DELETE",
+            headers: {
+              Authorization: "Bearer " + localStorage.getItem("token"),
+            },
+          });
+
+          const data = await response.json();
+          if (data.success) {
+            showSuccess("订单已删除");
+            loadPurchaseOrders();
+          } else {
+            showError(data.message || "删除失败");
+          }
+        } catch (error) {
+          showError("网络错误: " + error.message);
+        }
+      }
+
+      // 保存订单
+      async function saveOrder() {
+        const form = document.getElementById("orderForm");
+        const formData = new FormData(form);
+
+        // 验证必填字段
+        if (!formData.get("supplier_id")) {
+          showError("请选择供应商");
+          return;
+        }
+
+        if (selectedProducts.length === 0) {
+          showError("请至少添加一个商品");
+          return;
+        }
+
+        // 验证商品数据
+        for (let product of selectedProducts) {
+          if (!product.quantity || product.quantity <= 0) {
+            showError(`商品 ${product.name} 的数量必须大于0`);
             return;
           }
+          if (!product.cost_price || product.cost_price <= 0) {
+            showError(`商品 ${product.name} 的单价必须大于0`);
+            return;
+          }
+        }
 
-          const items = cart.map((item) => ({
-            product_id: item.product_id,
-            quantity: item.quantity,
-          }));
+        try {
+          showLoading();
 
-          fetch("/purchase_action", {
-            method: "POST",
+          const orderData = {
+            supplier_id: parseInt(formData.get("supplier_id")),
+            remark: formData.get("remark"),
+            details: selectedProducts.map((product) => ({
+              product_id: product.id,
+              quantity: product.quantity,
+              cost_price: product.cost_price,
+              remark: product.remark || "",
+            })),
+          };
+
+          const url = isEditMode
+            ? `/api/purchase-orders/${currentOrderId}`
+            : "/api/purchase-orders";
+          const method = isEditMode ? "PUT" : "POST";
+
+          const response = await fetch(url, {
+            method: method,
             headers: {
+              Authorization: "Bearer " + localStorage.getItem("token"),
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ items: items }),
-          })
-            .then((response) => response.json())
-            .then((data) => {
-              showMessage(data.message, data.success ? "success" : "error");
-              if (data.success) {
-                cart = [];
-                renderCart();
-                loadProducts(); // 重新加载商品以更新库存
-              }
-            })
-            .catch((error) => {
-              showMessage("操作失败，请重试", "error");
-            });
+            body: JSON.stringify(orderData),
+          });
+
+          const data = await response.json();
+          if (data.success) {
+            showSuccess(isEditMode ? "订单更新成功" : "订单创建成功");
+            closeOrderModal();
+            loadPurchaseOrders();
+          } else {
+            showError(data.message || "保存失败");
+          }
+        } catch (error) {
+          showError("网络错误: " + error.message);
+        } finally {
+          hideLoading();
+        }
+      }
+
+      // 打开商品选择器
+      function openProductSelector() {
+        renderProductsList();
+        document.getElementById("productSelectorModal").style.display = "flex";
+      }
+
+      // 关闭商品选择器
+      function closeProductSelector() {
+        document.getElementById("productSelectorModal").style.display = "none";
+      }
+
+      // 渲染商品列表
+      function renderProductsList() {
+        const searchQuery = document
+          .getElementById("productSearchInput")
+          .value.toLowerCase();
+        const categoryFilter = document.getElementById("categoryFilter").value;
+
+        let filteredProducts = products.filter((product) => {
+          const matchSearch =
+            product.name.toLowerCase().includes(searchQuery) ||
+            product.code.toLowerCase().includes(searchQuery);
+          const matchCategory =
+            !categoryFilter || product.category_id == categoryFilter;
+          const notSelected = !selectedProducts.find(
+            (p) => p.id === product.id
+          );
+
+          return matchSearch && matchCategory && notSelected;
         });
 
-      function showMessage(text, type) {
-        const messageDiv = document.getElementById("message");
-        messageDiv.textContent = text;
-        messageDiv.className = `message ${type}`;
-        messageDiv.style.display = "block";
+        const productsList = document.getElementById("productsList");
+        productsList.innerHTML = filteredProducts
+          .map(
+            (product) => `
+          <div class="product-item" onclick="selectProduct(${product.id})">
+            <div class="product-info">
+              <div class="product-name">${product.name}</div>
+              <div class="product-code">编码: ${product.code}</div>
+              <div class="product-price">当前售价: ￥${parseFloat(
+                product.sale_price || 0
+              ).toFixed(2)}</div>
+              <div class="product-stock">库存: ${product.stock_quantity || 0} ${
+              product.unit
+            }</div>
+            </div>
+          </div>
+        `
+          )
+          .join("");
+      }
 
-        setTimeout(() => {
-          messageDiv.style.display = "none";
-        }, 3000);
+      // 商品搜索
+      function handleProductSearch() {
+        renderProductsList();
+      }
+
+      // 商品筛选
+      function handleProductFilter() {
+        renderProductsList();
+      }
+
+      // 选择商品
+      function selectProduct(productId) {
+        const product = products.find((p) => p.id === productId);
+        if (product) {
+          const newProduct = {
+            id: product.id,
+            code: product.code,
+            name: product.name,
+            unit: product.unit,
+            quantity: 1,
+            cost_price: parseFloat(product.cost_price || 0),
+            amount: parseFloat(product.cost_price || 0),
+            remark: "",
+          };
+
+          selectedProducts.push(newProduct);
+          renderProductsTable();
+          updateTotalAmount();
+          renderProductsList(); // 刷新列表，移除已选商品
+        }
+      }
+
+      // 渲染商品表格
+      function renderProductsTable() {
+        const tbody = document.getElementById("productsTableBody");
+
+        if (selectedProducts.length === 0) {
+          tbody.innerHTML =
+            '<tr><td colspan="7" class="text-center">暂未添加商品</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = selectedProducts
+          .map(
+            (product, index) => `
+          <tr>
+            <td>${product.code}</td>
+            <td>${product.name}</td>
+            <td>${product.unit}</td>
+            <td>
+              <input type="number" class="form-input-small" value="${
+                product.quantity
+              }" 
+                     min="1" step="1" onchange="updateProductQuantity(${index}, this.value)">
+            </td>
+            <td>
+              <input type="number" class="form-input-small" value="${
+                product.cost_price
+              }" 
+                     min="0" step="0.01" onchange="updateProductPrice(${index}, this.value)">
+            </td>
+            <td>￥${parseFloat(product.amount).toFixed(2)}</td>
+            <td>
+              <button class="btn-link" onclick="removeProduct(${index})" title="移除">
+                🗑️
+              </button>
+            </td>
+          </tr>
+        `
+          )
+          .join("");
+      }
+
+      // 更新商品数量
+      function updateProductQuantity(index, quantity) {
+        const qty = parseFloat(quantity) || 0;
+        selectedProducts[index].quantity = qty;
+        selectedProducts[index].amount =
+          qty * selectedProducts[index].cost_price;
+        renderProductsTable();
+        updateTotalAmount();
+      }
+
+      // 更新商品价格
+      function updateProductPrice(index, price) {
+        const cost = parseFloat(price) || 0;
+        selectedProducts[index].cost_price = cost;
+        selectedProducts[index].amount =
+          selectedProducts[index].quantity * cost;
+        renderProductsTable();
+        updateTotalAmount();
+      }
+
+      // 移除商品
+      function removeProduct(index) {
+        selectedProducts.splice(index, 1);
+        renderProductsTable();
+        updateTotalAmount();
+        renderProductsList(); // 刷新列表，恢复已移除商品
+      }
+
+      // 更新总金额
+      function updateTotalAmount() {
+        const total = selectedProducts.reduce(
+          (sum, product) => sum + product.amount,
+          0
+        );
+        document.getElementById("totalAmount").textContent = `￥${total.toFixed(
+          2
+        )}`;
+      }
+
+      // 显示成功消息
+      function showSuccess(message) {
+        alert(message); // 简单实现，可以后续优化为自定义提示框
+      }
+
+      // 显示错误消息
+      function showError(message) {
+        alert(message); // 简单实现，可以后续优化为自定义提示框
       }
     </script>
   </body>

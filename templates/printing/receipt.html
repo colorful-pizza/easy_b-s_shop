@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>小票打印 - {{ order.order_no }}</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='printing/receipt.css') }}"
+    />
+    <style>
+      /* 兜底样式：如果外部 CSS 未加载，确保基本可读 */
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial;
+      }
+      .ticket {
+        width: 280px;
+        margin: 0 auto;
+        padding: 8px 10px;
+      }
+      .center {
+        text-align: center;
+      }
+      .muted {
+        color: #666;
+        font-size: 12px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        font-size: 12px;
+        padding: 4px 0;
+      }
+      th {
+        text-align: left;
+      }
+      .total {
+        margin-top: 8px;
+        border-top: 1px dashed #aaa;
+        padding-top: 6px;
+        font-weight: bold;
+      }
+      @media print {
+        .no-print {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="ticket">
+      <div class="center">
+        <h3 style="margin: 4px 0">销售小票</h3>
+        <div class="muted">订单号：{{ order.order_no }}</div>
+        <div class="muted">
+          日期：{{ order.sale_date }} 创建：{{ order.created_at }}
+        </div>
+        <div class="muted">
+          收银员：{{ order.user_name or '-' }} 客户：{{ order.customer_name or
+          '散户' }}
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>商品</th>
+            <th style="text-align: right">单价</th>
+            <th style="text-align: right">数量</th>
+            <th style="text-align: right">小计</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in details %}
+          <tr>
+            <td>{{ d.product_name }}</td>
+            <td style="text-align: right">{{ '%.2f' % d.selling_price }}</td>
+            <td style="text-align: right">{{ d.quantity }}</td>
+            <td style="text-align: right">{{ '%.2f' % d.amount }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="total">合计：¥{{ '%.2f' % order.total_amount }}</div>
+
+      <div class="center muted" style="margin-top: 8px">
+        谢谢惠顾，欢迎下次光临！
+      </div>
+
+      <div class="no-print center" style="margin-top: 10px">
+        <button onclick="window.print()">打印</button>
+        <button onclick="window.close()">关闭</button>
+      </div>
+    </div>
+
+    <script>
+      // 自动触发打印（短延时确保渲染完成）
+      window.addEventListener("load", () =>
+        setTimeout(() => window.print(), 100)
+      );
+    </script>
+  </body>
+</html>

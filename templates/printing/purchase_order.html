@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>采购订单 - {{ order.order_no }}</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='printing/receipt.css') }}"
+    />
+  </head>
+  <body>
+    <div class="ticket">
+      <div class="center">
+        <h3 style="margin: 4px 0">采购订单</h3>
+        <div class="muted">订单号：{{ order.order_no }}</div>
+        <div class="muted">
+          申请时间：{{ order.apply_time }} 审批时间：{{ order.approve_time }}
+        </div>
+        <div class="muted">供应商：{{ order.supplier_name or '-' }}</div>
+        <div class="muted">
+          申请人：{{ order.apply_user_name or '-' }} 审批人：{{
+          order.approve_user_name or '-' }}
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>商品</th>
+            <th style="text-align: right">单价</th>
+            <th style="text-align: right">数量</th>
+            <th style="text-align: right">小计</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in details %}
+          <tr>
+            <td>{{ d.product_name }}</td>
+            <td style="text-align: right">{{ '%.2f' % d.cost_price }}</td>
+            <td style="text-align: right">{{ d.quantity }}</td>
+            <td style="text-align: right">{{ '%.2f' % d.amount }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="total">合计：¥{{ '%.2f' % order.total_amount }}</div>
+
+      <div class="no-print center" style="margin-top: 10px">
+        <button onclick="window.print()">打印</button>
+        <button onclick="window.close()">关闭</button>
+      </div>
+    </div>
+
+    <script>
+      window.addEventListener("load", () =>
+        setTimeout(() => window.print(), 100)
+      );
+    </script>
+  </body>
+</html>

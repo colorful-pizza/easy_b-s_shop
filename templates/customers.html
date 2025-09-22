@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>客户管理 - 便利店进销存系统</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+  <body>
+    <!-- 顶部导航栏 -->
+    <header class="navbar">
+      <div class="navbar-content">
+        <div class="navbar-brand">
+          <h1>便利店进销存系统</h1>
+        </div>
+        <div class="navbar-user">
+          <a href="/" class="btn btn-secondary" style="margin-right: 10px"
+            >返回首页</a
+          >
+          <span id="userInfo"></span>
+          <button id="logoutBtn" class="btn btn-secondary">退出登录</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="main-container">
+      <!-- 侧边栏 -->
+      <aside class="sidebar">
+        <nav class="sidebar-nav">
+          <ul id="menuList">
+            <!-- 菜单项将通过JavaScript动态生成 -->
+          </ul>
+        </nav>
+      </aside>
+
+      <!-- 主内容区域 -->
+      <main class="content">
+        <div class="content-header">
+          <h2>客户管理</h2>
+          <div class="breadcrumb">
+            <span>首页 > 客户管理</span>
+          </div>
+        </div>
+
+        <div class="content-body">
+          <!-- 操作栏 -->
+          <div class="action-bar">
+            <button class="btn btn-primary" onclick="openCustomerModal()">
+              新增客户
+            </button>
+            <div class="search-container">
+              <input
+                id="searchInput"
+                class="search-input"
+                placeholder="搜索客户名或电话"
+                onkeyup="handleSearch()"
+              />
+              <select
+                id="statusFilter"
+                class="filter-select"
+                onchange="handleFilter()"
+              >
+                <option value="">所有状态</option>
+                <option value="active">有效</option>
+                <option value="inactive">无效</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 数据表格 -->
+          <div class="table-container">
+            <table class="data-table" id="customersTable">
+              <thead>
+                <tr>
+                  <th>名称</th>
+                  <th>电话</th>
+                  <th>地址</th>
+                  <th>状态</th>
+                  <th>创建时间</th>
+                  <th>备注</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="customersTableBody"></tbody>
+            </table>
+          </div>
+
+          <!-- 分页 -->
+          <div class="pagination-container">
+            <div class="page-info"><span id="pageInfo">共 0 条记录</span></div>
+            <div id="pagination" class="pagination"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- 新增/编辑客户模态框 -->
+    <div id="customerModal" class="modal" style="display: none">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="customerModalTitle">新增客户</h3>
+          <span class="close" onclick="closeCustomerModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+          <form id="customerForm">
+            <input type="hidden" id="customerId" />
+            <div class="form-row">
+              <div class="form-group">
+                <label for="customerName">名称 *</label>
+                <input
+                  id="customerName"
+                  required
+                  placeholder="请输入客户名称"
+                />
+              </div>
+              <div class="form-group">
+                <label for="customerPhone">电话</label>
+                <input id="customerPhone" placeholder="请输入联系电话" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="customerAddress">地址</label>
+                <input id="customerAddress" placeholder="请输入地址" />
+              </div>
+            </div>
+            <div class="form-row" id="statusRow" style="display: none">
+              <div class="form-group">
+                <label for="customerStatus">状态</label>
+                <select id="customerStatus">
+                  <option value="active">有效</option>
+                  <option value="inactive">无效</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="customerRemark">备注</label>
+                <textarea
+                  id="customerRemark"
+                  placeholder="备注（可选）"
+                ></textarea>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeCustomerModal()">
+            取消
+          </button>
+          <button class="btn btn-primary" onclick="saveCustomer()">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 加载遮罩 -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">加载中...</div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+    <script>
+      // 列表状态
+      let currentPage = 1;
+      let pageSize = 10;
+      let searchQuery = "";
+      let statusFilter = "";
+      let editingId = null;
+
+      document.addEventListener("DOMContentLoaded", () => {
+        initCommonPage("customers");
+        loadCustomers();
+      });
+
+      function showLoading() {
+        document.getElementById("loadingOverlay").style.display = "flex";
+      }
+      function hideLoading() {
+        document.getElementById("loadingOverlay").style.display = "none";
+      }
+      function showError(msg) {
+        alert(msg);
+      }
+      function showSuccess(msg) {
+        alert(msg);
+      }
+
+      async function loadCustomers() {
+        showLoading();
+        try {
+          const params = new URLSearchParams({
+            page: currentPage,
+            size: pageSize,
+          });
+          if (searchQuery) params.append("search", searchQuery);
+          if (statusFilter) params.append("status", statusFilter);
+          // 默认不隐藏散户（include_default=true）
+          const res = await fetch(`/api/customers?${params.toString()}`, {
+            headers: {
+              Authorization: "Bearer " + localStorage.getItem("token"),
+            },
+          });
+          const data = await res.json();
+          if (!data.success) return showError(data.message || "加载客户失败");
+          renderTable(data.data);
+          renderPagination(data.pagination);
+        } catch (e) {
+          showError("网络错误: " + e.message);
+        } finally {
+          hideLoading();
+        }
+      }
+
+      function renderTable(list) {
+        const tbody = document.getElementById("customersTableBody");
+        if (!list || list.length === 0) {
+          tbody.innerHTML =
+            '<tr><td colspan="7" class="text-center">暂无数据</td></tr>';
+          return;
+        }
+        tbody.innerHTML = list
+          .map(
+            (c) => `
+          <tr>
+            <td>${c.name}${
+              c.is_default
+                ? ' <span class="status-badge status-approved">默认</span>'
+                : ""
+            }</td>
+            <td>${c.phone || ""}</td>
+            <td>${c.address || ""}</td>
+            <td><span class="status-badge ${
+              c.status === "active" ? "status-active" : "status-inactive"
+            }">${c.status === "active" ? "有效" : "无效"}</span></td>
+            <td>${c.created_at || ""}</td>
+            <td>${c.remark || ""}</td>
+            <td>
+              <div class="action-buttons">
+                ${
+                  !c.is_default
+                    ? `
+                  <button class="btn-link" title="编辑" onclick="openCustomerModal(${c.id})">✏️</button>
+                  <button class="btn-link" title="删除" onclick="deleteCustomer(${c.id})">🗑️</button>
+                `
+                    : `<span style='color:#999'>不可编辑</span>`
+                }
+              </div>
+            </td>
+          </tr>
+        `
+          )
+          .join("");
+      }
+
+      function renderPagination(p) {
+        document.getElementById(
+          "pageInfo"
+        ).textContent = `共 ${p.total} 条记录，第 ${p.page} / ${p.total_pages} 页`;
+        const el = document.getElementById("pagination");
+        let html = "";
+        if (p.has_prev)
+          html += `<button class="page-btn" onclick="gotoPage(${
+            p.page - 1
+          })">上一页</button>`;
+        const start = Math.max(1, p.page - 2),
+          end = Math.min(p.total_pages, p.page + 2);
+        for (let i = start; i <= end; i++)
+          html += `<button class="page-btn ${
+            i === p.page ? "active" : ""
+          }" onclick="gotoPage(${i})">${i}</button>`;
+        if (p.has_next)
+          html += `<button class="page-btn" onclick="gotoPage(${
+            p.page + 1
+          })">下一页</button>`;
+        el.innerHTML = html;
+      }
+
+      function gotoPage(page) {
+        currentPage = page;
+        loadCustomers();
+      }
+      function handleSearch() {
+        searchQuery = document.getElementById("searchInput").value.trim();
+        currentPage = 1;
+        loadCustomers();
+      }
+      function handleFilter() {
+        statusFilter = document.getElementById("statusFilter").value;
+        currentPage = 1;
+        loadCustomers();
+      }
+
+      function openCustomerModal(id) {
+        const title = document.getElementById("customerModalTitle");
+        const statusRow = document.getElementById("statusRow");
+        const form = document.getElementById("customerForm");
+        form.reset();
+        document.getElementById("customerId").value = "";
+        editingId = null;
+        statusRow.style.display = "none";
+        title.textContent = "新增客户";
+        if (id) {
+          // 进入编辑
+          loadCustomerDetail(id);
+        }
+        document.getElementById("customerModal").style.display = "flex";
+      }
+
+      function closeCustomerModal() {
+        document.getElementById("customerModal").style.display = "none";
+      }
+
+      async function loadCustomerDetail(id) {
+        try {
+          const res = await fetch(`/api/customers/${id}`, {
+            headers: {
+              Authorization: "Bearer " + localStorage.getItem("token"),
+            },
+          });
+          const data = await res.json();
+          if (!data.success)
+            return showError(data.message || "获取客户详情失败");
+          const c = data.data;
+          editingId = c.id;
+          document.getElementById("customerModalTitle").textContent =
+            "编辑客户";
+          document.getElementById("customerId").value = c.id;
+          document.getElementById("customerName").value = c.name || "";
+          document.getElementById("customerPhone").value = c.phone || "";
+          document.getElementById("customerAddress").value = c.address || "";
+          document.getElementById("customerRemark").value = c.remark || "";
+          // 编辑时可改状态
+          const statusRow = document.getElementById("statusRow");
+          statusRow.style.display = "block";
+          document.getElementById("customerStatus").value =
+            c.status || "active";
+        } catch (e) {
+          showError("网络错误: " + e.message);
+        }
+      }
+
+      async function saveCustomer() {
+        const name = document.getElementById("customerName").value.trim();
+        const phone = document.getElementById("customerPhone").value.trim();
+        const address = document.getElementById("customerAddress").value.trim();
+        const remark = document.getElementById("customerRemark").value.trim();
+        if (!name) return showError("请填写客户名称");
+        const payload = { name, phone, address, remark };
+        let url = "/api/customers";
+        let method = "POST";
+        if (editingId) {
+          url = `/api/customers/${editingId}`;
+          method = "PUT";
+          const status = document.getElementById("customerStatus").value;
+          payload.status = status;
+        }
+        try {
+          showLoading();
+          const res = await fetch(url, {
+            method,
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + localStorage.getItem("token"),
+            },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          if (!data.success) return showError(data.message || "保存失败");
+          showSuccess("保存成功");
+          closeCustomerModal();
+          loadCustomers();
+        } catch (e) {
+          showError("网络错误: " + e.message);
+        } finally {
+          hideLoading();
+        }
+      }
+
+      async function deleteCustomer(id) {
+        if (!confirm("确定删除该客户吗？")) return;
+        try {
+          showLoading();
+          const res = await fetch(`/api/customers/${id}`, {
+            method: "DELETE",
+            headers: {
+              Authorization: "Bearer " + localStorage.getItem("token"),
+            },
+          });
+          const data = await res.json();
+          if (!data.success) return showError(data.message || "删除失败");
+          showSuccess("删除成功");
+          loadCustomers();
+        } catch (e) {
+          showError("网络错误: " + e.message);
+        } finally {
+          hideLoading();
+        }
+      }
+    </script>
+  </body>
+</html>

@@ -4,408 +4,452 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>商品销售 - 便利店进销存系统</title>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 0;
-        background-color: #f5f5f5;
-      }
-      .header {
-        background-color: #007bff;
-        color: white;
-        padding: 15px 20px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-      .back-btn {
-        background-color: #6c757d;
-        color: white;
-        padding: 8px 15px;
-        text-decoration: none;
-        border-radius: 4px;
-      }
-      .container {
-        max-width: 1200px;
-        margin: 20px auto;
-        padding: 0 20px;
-      }
-      .products-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 15px;
-        margin-bottom: 30px;
-      }
-      .product-card {
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
-      }
-      .product-image {
-        width: 100%;
-        height: 120px;
-        object-fit: cover;
-      }
-      .product-info {
-        padding: 15px;
-      }
-      .product-name {
-        font-weight: bold;
-        margin-bottom: 5px;
-      }
-      .product-price {
-        color: #28a745;
-        font-size: 18px;
-        margin-bottom: 10px;
-      }
-      .product-stock {
-        color: #666;
-        font-size: 14px;
-        margin-bottom: 10px;
-      }
-      .stock-low {
-        color: #ffc107;
-      }
-      .stock-empty {
-        color: #dc3545;
-      }
-      .action-controls {
-        display: flex;
-        gap: 5px;
-        align-items: center;
-      }
-      .quantity-input {
-        width: 50px;
-        padding: 5px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        text-align: center;
-      }
-      .sales-btn {
-        padding: 8px 12px;
-        background-color: #007bff;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 12px;
-      }
-      .sales-btn:disabled {
-        background-color: #6c757d;
-        cursor: not-allowed;
-      }
-      .cart {
-        background: white;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        position: sticky;
-        top: 20px;
-      }
-      .cart-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 0;
-        border-bottom: 1px solid #eee;
-      }
-      .cart-item-info {
-        flex: 1;
-      }
-      .cart-item-name {
-        font-weight: bold;
-      }
-      .cart-item-details {
-        font-size: 12px;
-        color: #666;
-      }
-      .cart-amount {
-        color: #28a745;
-        font-weight: bold;
-        margin: 0 10px;
-      }
-      .remove-btn {
-        background: none;
-        border: none;
-        color: #dc3545;
-        cursor: pointer;
-        font-size: 12px;
-      }
-      .cart-total {
-        border-top: 2px solid #007bff;
-        padding-top: 15px;
-        margin-top: 15px;
-      }
-      .total-amount {
-        font-size: 18px;
-        font-weight: bold;
-        color: #007bff;
-        text-align: center;
-      }
-      .submit-btn {
-        width: 100%;
-        padding: 12px;
-        background-color: #28a745;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 16px;
-        margin-top: 15px;
-      }
-      .submit-btn:hover {
-        background-color: #218838;
-      }
-      .message {
-        padding: 10px;
-        margin: 10px 0;
-        border-radius: 4px;
-        display: none;
-      }
-      .message.success {
-        background-color: #d4edda;
-        color: #155724;
-        border: 1px solid #c3e6cb;
-      }
-      .message.error {
-        background-color: #f8d7da;
-        color: #721c24;
-        border: 1px solid #f5c6cb;
-      }
-      .main-content {
-        display: grid;
-        grid-template-columns: 1fr 300px;
-        gap: 20px;
-      }
-      @media (max-width: 768px) {
-        .main-content {
-          grid-template-columns: 1fr;
-        }
-      }
-    </style>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
   </head>
   <body>
-    <div class="header">
-      <h1>商品销售</h1>
-      <a href="/" class="back-btn">返回首页</a>
-    </div>
-
-    <div class="container">
-      <div id="message" class="message"></div>
-
-      <div class="main-content">
-        <div>
-          <h3>商品列表</h3>
-          <div id="products-grid" class="products-grid">
-            <!-- 商品列表将通过JavaScript加载 -->
-          </div>
+    <!-- 顶部导航栏 -->
+    <header class="navbar">
+      <div class="navbar-content">
+        <div class="navbar-brand">
+          <h1>便利店进销存系统</h1>
         </div>
-
-        <div class="cart">
-          <h3>销售清单</h3>
-          <div id="cart-items"></div>
-          <div class="cart-total">
-            <div class="total-amount">
-              总金额: ¥<span id="total-amount">0.00</span>
-            </div>
-            <button id="submit-btn" class="submit-btn">确认销售</button>
-          </div>
+        <div class="navbar-user">
+          <a href="/" class="btn btn-secondary" style="margin-right: 10px"
+            >返回首页</a
+          >
+          <span id="userInfo"></span>
+          <button id="logoutBtn" class="btn btn-secondary">退出登录</button>
         </div>
       </div>
+    </header>
+
+    <div class="main-container">
+      <!-- 侧边栏 -->
+      <aside class="sidebar">
+        <nav class="sidebar-nav">
+          <ul id="menuList">
+            <!-- 菜单项将通过JavaScript动态生成 -->
+          </ul>
+        </nav>
+      </aside>
+
+      <!-- 主内容区域 -->
+      <main class="content">
+        <div class="content-header">
+          <h2>商品销售</h2>
+          <div class="breadcrumb">
+            <span>首页 > 商品销售</span>
+          </div>
+        </div>
+
+        <div class="content-body">
+          <!-- 提示区域 -->
+          <div id="msgArea"></div>
+
+          <!-- 操作栏：扫码/输入条码加入购物车 -->
+          <div class="action-bar">
+            <div
+              class="search-container"
+              style="flex-wrap: wrap; row-gap: 10px"
+            >
+              <input
+                type="text"
+                class="search-input"
+                id="barcodeInput"
+                placeholder="扫码/输入条码或名称后按回车添加到购物车"
+                style="width: 420px; font-size: 16px"
+              />
+              <div id="suggestList" style="position: relative; width: 100%">
+                <!-- 简易联想结果（可点击加入）将插入到此处 -->
+              </div>
+            </div>
+            <div>
+              <select
+                id="customerSelect"
+                class="filter-select"
+                title="选择客户"
+              >
+                <option value="">选择客户（默认散户）</option>
+              </select>
+              <input
+                type="text"
+                id="orderRemark"
+                class="search-input"
+                placeholder="订单备注（可选）"
+                style="width: 220px"
+              />
+              <button class="btn btn-secondary" onclick="clearCart()">
+                清空购物车
+              </button>
+              <label
+                style="margin-left: 10px; margin-right: 6px; user-select: none"
+              >
+                <input type="checkbox" id="printAfterCheckout" checked />
+                下单后打印小票
+              </label>
+              <button class="btn btn-primary" onclick="checkout()">
+                结算下单
+              </button>
+            </div>
+          </div>
+
+          <!-- 购物车表格 -->
+          <div class="table-container">
+            <table class="data-table" id="cartTable">
+              <thead>
+                <tr>
+                  <th style="width: 140px">商品编码</th>
+                  <th>商品名称</th>
+                  <th style="width: 80px">单位</th>
+                  <th style="width: 100px">单价</th>
+                  <th style="width: 100px">库存</th>
+                  <th style="width: 180px">数量</th>
+                  <th style="width: 120px">小计</th>
+                  <th style="width: 80px">操作</th>
+                </tr>
+              </thead>
+              <tbody id="cartTableBody">
+                <tr>
+                  <td class="text-center" colspan="8">
+                    购物车为空，请扫码或输入添加
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 合计区域 -->
+          <div class="pagination-container" style="justify-content: flex-end">
+            <div
+              class="page-info"
+              style="display: flex; gap: 20px; align-items: center"
+            >
+              <span>商品种类：<b id="itemKinds">0</b></span>
+              <span>总数量：<b id="totalQty">0</b></span>
+              <span>合计金额：<b id="totalAmount">¥0.00</b></span>
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
 
+    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
     <script>
-      let products = [];
+      // 购物车数据结构：[{ product_id, code, name, unit, price, stock, quantity }]
       let cart = [];
+      let customers = [];
 
-      // 页面加载时获取商品列表
+      // 页面初始化
       document.addEventListener("DOMContentLoaded", function () {
-        loadProducts();
+        initCommonPage("sales");
+        const input = document.getElementById("barcodeInput");
+        input.addEventListener("keydown", onBarcodeEnter);
+        input.focus();
+        loadCustomers();
       });
 
-      function loadProducts() {
-        fetch("/products")
-          .then((response) => response.json())
-          .then((data) => {
-            if (data.success) {
-              products = data.products;
-              renderProducts();
+      async function loadCustomers() {
+        try {
+          const res = await fetch(
+            `/api/customers/search?limit=500&include_default=true`,
+            {
+              headers: {
+                Authorization: "Bearer " + localStorage.getItem("token"),
+              },
             }
-          })
-          .catch((error) => {
-            showMessage("加载商品失败", "error");
-          });
+          );
+          const data = await res.json();
+          if (!data.success) throw new Error(data.message || "加载客户失败");
+          customers = data.data || [];
+          const sel = document.getElementById("customerSelect");
+          // 清空并重建
+          sel.innerHTML =
+            '<option value="">选择客户（默认散户）</option>' +
+            customers
+              .map(
+                (c) =>
+                  `<option value="${c.id}">${c.name}${
+                    c.is_default ? "（散户）" : ""
+                  }</option>`
+              )
+              .join("");
+          // 默认选中散户
+          const def = customers.find((c) => c.is_default);
+          if (def) sel.value = String(def.id);
+        } catch (e) {
+          console.error(e);
+        }
       }
 
-      function renderProducts() {
-        const grid = document.getElementById("products-grid");
-        grid.innerHTML = "";
-
-        products.forEach((product) => {
-          const productCard = document.createElement("div");
-          productCard.className = "product-card";
-
-          let stockClass = "";
-          let stockText = `库存: ${product.stock}`;
-          let isDisabled = product.stock === 0;
-
-          if (product.stock === 0) {
-            stockClass = "stock-empty";
-            stockText = "缺货";
-          } else if (product.stock <= 10) {
-            stockClass = "stock-low";
-          }
-
-          productCard.innerHTML = `
-                    <img src="${product.image_url}" alt="${
-            product.name
-          }" class="product-image" 
-                         onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuaXoOWbvueJhzwvdGV4dD48L3N2Zz4='">
-                    <div class="product-info">
-                        <div class="product-name">${product.name}</div>
-                        <div class="product-price">¥${
-                          product.selling_price
-                        }</div>
-                        <div class="product-stock ${stockClass}">${stockText}</div>
-                        <div class="action-controls">
-                            <input type="number" class="quantity-input" value="1" min="1" max="${
-                              product.stock
-                            }" id="qty-${product.id}" ${
-            isDisabled ? "disabled" : ""
-          }>
-                            <button class="sales-btn" onclick="addToCart(${
-                              product.id
-                            })" ${isDisabled ? "disabled" : ""}>销售</button>
-                        </div>
-                    </div>
-                `;
-          grid.appendChild(productCard);
-        });
+      function onBarcodeEnter(e) {
+        if (e.key === "Enter") {
+          const keyword = e.target.value.trim();
+          if (!keyword) return;
+          searchAndAdd(keyword);
+        } else {
+          // 节流搜索联想
+          const keyword = e.target.value.trim();
+          debounceSuggest(keyword);
+        }
       }
 
-      function addToCart(productId) {
-        const qtyInput = document.getElementById(`qty-${productId}`);
-        const quantity = parseInt(qtyInput.value);
+      let suggestTimer = null;
+      function debounceSuggest(keyword) {
+        clearTimeout(suggestTimer);
+        suggestTimer = setTimeout(() => loadSuggestions(keyword), 250);
+      }
 
-        if (quantity <= 0) {
-          showMessage("数量必须大于0", "error");
+      async function loadSuggestions(keyword) {
+        const container = document.getElementById("suggestList");
+        if (!keyword) {
+          container.innerHTML = "";
           return;
         }
-
-        const product = products.find((p) => p.id === productId);
-        if (!product) return;
-
-        // 检查库存是否足够
-        if (quantity > product.stock) {
-          showMessage("库存不足", "error");
-          return;
-        }
-
-        // 检查购物车中是否已有相同商品
-        const existingIndex = cart.findIndex(
-          (item) => item.product_id === productId
-        );
-
-        if (existingIndex >= 0) {
-          const newQuantity = cart[existingIndex].quantity + quantity;
-          if (newQuantity > product.stock) {
-            showMessage("库存不足", "error");
+        try {
+          const res = await fetch(
+            `/api/products/search?keyword=${encodeURIComponent(
+              keyword
+            )}&limit=8`,
+            {
+              headers: {
+                Authorization: "Bearer " + localStorage.getItem("token"),
+              },
+            }
+          );
+          const data = await res.json();
+          if (!data.success) throw new Error(data.message || "搜索失败");
+          const rows = data.data || [];
+          if (rows.length === 0) {
+            container.innerHTML = "";
             return;
           }
-          cart[existingIndex].quantity = newQuantity;
-          cart[existingIndex].amount = newQuantity * product.selling_price;
+          const listHtml = `
+            <div style="position:absolute; background:#fff; border:1px solid #dee2e6; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.1); margin-top:6px; z-index:10; max-width:520px;">
+              ${rows
+                .map(
+                  (p) => `
+                    <div style="padding:8px 12px; cursor:pointer; display:flex; justify-content:space-between; gap:12px;" onclick='addProduct(${JSON.stringify(
+                      p
+                    ).replace(/"/g, "&quot;")})'>
+                      <span>${p.code || "-"} - ${p.name}</span>
+                      <span style="color:#6c757d">¥${parseFloat(
+                        p.selling_price
+                      ).toFixed(2)} / 库存:${p.stock_quantity || 0}</span>
+                    </div>`
+                )
+                .join("")}
+            </div>`;
+          container.innerHTML = listHtml;
+        } catch (err) {
+          console.error(err);
+        }
+      }
+
+      async function searchAndAdd(keyword) {
+        try {
+          const res = await fetch(
+            `/api/products/search?keyword=${encodeURIComponent(
+              keyword
+            )}&limit=20`,
+            {
+              headers: {
+                Authorization: "Bearer " + localStorage.getItem("token"),
+              },
+            }
+          );
+          const data = await res.json();
+          if (!data.success) throw new Error(data.message || "搜索失败");
+          const rows = data.data || [];
+          if (rows.length === 0) {
+            showError("未找到匹配的商品", document.getElementById("msgArea"));
+            return;
+          }
+          // 优先精确匹配编码
+          const exact = rows.find(
+            (p) => p.code && p.code.toLowerCase() === keyword.toLowerCase()
+          );
+          addProduct(exact || rows[0]);
+        } catch (err) {
+          showError(err.message, document.getElementById("msgArea"));
+        } finally {
+          const input = document.getElementById("barcodeInput");
+          input.value = "";
+          input.focus();
+          document.getElementById("suggestList").innerHTML = "";
+        }
+      }
+
+      function addProduct(p) {
+        const stock = p.stock_quantity || 0;
+        if (stock <= 0) {
+          showError(
+            "该商品库存不足，无法加入",
+            document.getElementById("msgArea")
+          );
+          return;
+        }
+        const exist = cart.find((it) => it.product_id === p.id);
+        if (exist) {
+          const next = exist.quantity + 1;
+          if (next > exist.stock) {
+            showError("超过库存上限", document.getElementById("msgArea"));
+          } else {
+            exist.quantity = next;
+          }
         } else {
           cart.push({
-            product_id: productId,
-            product_name: product.name,
-            quantity: quantity,
-            selling_price: product.selling_price,
-            amount: quantity * product.selling_price,
+            product_id: p.id,
+            code: p.code || "",
+            name: p.name,
+            unit: p.unit || "件",
+            price: parseFloat(p.selling_price || 0),
+            stock: stock,
+            quantity: 1,
           });
         }
-
         renderCart();
-        qtyInput.value = 1; // 重置数量输入框
       }
 
       function renderCart() {
-        const cartItems = document.getElementById("cart-items");
-        const totalAmountSpan = document.getElementById("total-amount");
-
-        cartItems.innerHTML = "";
-        let totalAmount = 0;
-
-        cart.forEach((item, index) => {
-          totalAmount += item.amount;
-
-          const cartItem = document.createElement("div");
-          cartItem.className = "cart-item";
-          cartItem.innerHTML = `
-                    <div class="cart-item-info">
-                        <div class="cart-item-name">${item.product_name}</div>
-                        <div class="cart-item-details">
-                            ¥${item.selling_price} × ${item.quantity}
-                        </div>
-                    </div>
-                    <div class="cart-amount">¥${item.amount.toFixed(2)}</div>
-                    <button class="remove-btn" onclick="removeFromCart(${index})">删除</button>
-                `;
-          cartItems.appendChild(cartItem);
-        });
-
-        totalAmountSpan.textContent = totalAmount.toFixed(2);
+        const tbody = document.getElementById("cartTableBody");
+        if (!cart.length) {
+          tbody.innerHTML =
+            '<tr><td class="text-center" colspan="8">购物车为空，请扫码或输入添加</td></tr>';
+          updateSummary();
+          return;
+        }
+        tbody.innerHTML = cart
+          .map((it) => {
+            const subtotal = it.quantity * it.price;
+            return `
+              <tr>
+                <td>${it.code || "-"}</td>
+                <td>${it.name}</td>
+                <td>${it.unit}</td>
+                <td>¥${it.price.toFixed(2)}</td>
+                <td>${it.stock}</td>
+                <td>
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <button class="btn-link" title="减少" onclick="changeQty(${
+                      it.product_id
+                    }, -1)">➖</button>
+                    <input type="number" min="1" max="${it.stock}" value="${
+              it.quantity
+            }" style="width:70px; padding:6px;" onchange="setQty(${
+              it.product_id
+            }, this.value)" />
+                    <button class="btn-link" title="增加" onclick="changeQty(${
+                      it.product_id
+                    }, 1)">➕</button>
+                  </div>
+                </td>
+                <td>¥${subtotal.toFixed(2)}</td>
+                <td><button class="btn-link" title="移除" onclick="removeItem(${
+                  it.product_id
+                })">🗑️</button></td>
+              </tr>
+            `;
+          })
+          .join("");
+        updateSummary();
       }
 
-      function removeFromCart(index) {
-        cart.splice(index, 1);
+      function changeQty(pid, delta) {
+        const it = cart.find((x) => x.product_id === pid);
+        if (!it) return;
+        let val = it.quantity + delta;
+        val = Math.max(1, Math.min(it.stock, val));
+        it.quantity = val;
         renderCart();
       }
 
-      document
-        .getElementById("submit-btn")
-        .addEventListener("click", function () {
-          if (cart.length === 0) {
-            showMessage("请先添加销售商品", "error");
-            return;
-          }
+      function setQty(pid, val) {
+        const it = cart.find((x) => x.product_id === pid);
+        if (!it) return;
+        let n = parseInt(val || 1, 10);
+        if (isNaN(n)) n = 1;
+        n = Math.max(1, Math.min(it.stock, n));
+        it.quantity = n;
+        renderCart();
+      }
 
-          const items = cart.map((item) => ({
-            product_id: item.product_id,
-            quantity: item.quantity,
-          }));
+      function removeItem(pid) {
+        cart = cart.filter((x) => x.product_id !== pid);
+        renderCart();
+      }
 
-          fetch("/sales_action", {
+      function clearCart() {
+        cart = [];
+        renderCart();
+        showSuccess("已清空购物车", document.getElementById("msgArea"));
+      }
+
+      function updateSummary() {
+        const kinds = cart.length;
+        const totalQty = cart.reduce((s, it) => s + it.quantity, 0);
+        const totalAmount = cart.reduce(
+          (s, it) => s + it.quantity * it.price,
+          0
+        );
+        document.getElementById("itemKinds").textContent = kinds;
+        document.getElementById("totalQty").textContent = totalQty;
+        document.getElementById(
+          "totalAmount"
+        ).textContent = `¥${totalAmount.toFixed(2)}`;
+      }
+
+      async function checkout() {
+        if (!cart.length) {
+          showError("购物车为空", document.getElementById("msgArea"));
+          return;
+        }
+        // 组装明细
+        const details = cart.map((it) => ({
+          product_id: it.product_id,
+          quantity: it.quantity,
+          selling_price: it.price,
+        }));
+        const customerIdValue = document.getElementById("customerSelect").value;
+        const payload = {
+          sale_date: formatDate(new Date()),
+          details,
+          remark: document.getElementById("orderRemark").value.trim(),
+        };
+        if (customerIdValue) {
+          payload.customer_id = parseInt(customerIdValue, 10);
+        }
+        try {
+          const res = await fetch("/api/outgoing-orders", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
+              Authorization: "Bearer " + localStorage.getItem("token"),
             },
-            body: JSON.stringify({ items: items }),
-          })
-            .then((response) => response.json())
-            .then((data) => {
-              showMessage(data.message, data.success ? "success" : "error");
-              if (data.success) {
-                cart = [];
-                renderCart();
-                loadProducts(); // 重新加载商品以更新库存
-              }
-            })
-            .catch((error) => {
-              showMessage("操作失败，请重试", "error");
-            });
-        });
-
-      function showMessage(text, type) {
-        const messageDiv = document.getElementById("message");
-        messageDiv.textContent = text;
-        messageDiv.className = `message ${type}`;
-        messageDiv.style.display = "block";
-
-        setTimeout(() => {
-          messageDiv.style.display = "none";
-        }, 3000);
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          if (!data.success) throw new Error(data.message || "下单失败");
+          showSuccess(
+            `下单成功，订单号：${data.data.order_no}，合计：¥${parseFloat(
+              data.data.total_amount || 0
+            ).toFixed(2)}`,
+            document.getElementById("msgArea")
+          );
+          // 选项：下单后打印小票
+          const printChecked =
+            document.getElementById("printAfterCheckout")?.checked;
+          if (printChecked && data.data && data.data.order_id) {
+            const url = `/printing/receipt/${data.data.order_id}`;
+            window.open(url, "_blank");
+          }
+          clearCart();
+          document.getElementById("barcodeInput").focus();
+        } catch (err) {
+          showError(err.message, document.getElementById("msgArea"));
+        }
       }
     </script>
   </body>

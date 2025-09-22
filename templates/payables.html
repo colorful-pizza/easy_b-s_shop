@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>应付结算 - 便利店进销存系统</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+  <body>
+    <!-- 顶部导航栏 -->
+    <header class="navbar">
+      <div class="navbar-content">
+        <div class="navbar-brand">
+          <h1>便利店进销存系统</h1>
+        </div>
+        <div class="navbar-user">
+          <a href="/" class="btn btn-secondary" style="margin-right: 10px"
+            >返回首页</a
+          >
+          <span id="userInfo"></span>
+          <button id="logoutBtn" class="btn btn-secondary">退出登录</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="main-container">
+      <!-- 侧边栏 -->
+      <aside class="sidebar">
+        <nav class="sidebar-nav">
+          <ul id="menuList"></ul>
+        </nav>
+      </aside>
+
+      <!-- 主内容区域 -->
+      <main class="content">
+        <div class="content-header">
+          <h2>应付结算</h2>
+          <div class="breadcrumb"><span>首页 > 应付结算</span></div>
+        </div>
+
+        <div class="content-body">
+          <div id="msgArea"></div>
+
+          <!-- 操作栏 -->
+          <div class="action-bar">
+            <div class="search-container">
+              <input
+                type="text"
+                class="search-input"
+                id="searchInput"
+                placeholder="搜索供应商名称或联系人"
+                onkeyup="handleSearch()"
+              />
+              <button
+                class="btn btn-primary"
+                id="printBtn"
+                disabled
+                onclick="printStatement()"
+              >
+                打印对账单
+              </button>
+            </div>
+          </div>
+
+          <!-- 供应商汇总 -->
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>供应商</th>
+                  <th>联系人</th>
+                  <th>电话</th>
+                  <th>未付订单数</th>
+                  <th>未付金额</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="payableTableBody"></tbody>
+            </table>
+          </div>
+          <div class="pagination-container">
+            <div class="page-info">
+              <span id="payablePageInfo">共 0 家</span>
+            </div>
+            <div class="pagination" id="payablePagination"></div>
+          </div>
+
+          <!-- 供应商未付订单列表 -->
+          <div class="table-container" style="margin-top: 15px">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 140px">订单号</th>
+                  <th>状态</th>
+                  <th>金额</th>
+                  <th>申请时间</th>
+                  <th>审批时间</th>
+                </tr>
+              </thead>
+              <tbody id="supplierOrdersBody">
+                <tr>
+                  <td colspan="5" class="text-center">
+                    请选择上方供应商查看订单
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 供应商未付订单明细 -->
+          <div class="table-container" style="margin-top: 10px">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>订单号</th>
+                  <th>商品编码</th>
+                  <th>商品名称</th>
+                  <th>单位</th>
+                  <th>数量</th>
+                  <th>进价</th>
+                  <th>小计</th>
+                </tr>
+              </thead>
+              <tbody id="supplierDetailsBody">
+                <tr>
+                  <td colspan="7" class="text-center">暂无明细</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pagination-container" style="justify-content: flex-end">
+            <button
+              class="btn btn-primary"
+              id="settleBtn"
+              disabled
+              onclick="settleSelectedSupplier()"
+            >
+              结算选中供应商
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+    <script>
+      let payablePage = 1,
+        payableSize = 10;
+      let searchQuery = "";
+      let selectedSupplierId = null;
+      let selectedSupplierName = "";
+
+      document.addEventListener("DOMContentLoaded", function () {
+        initCommonPage("payables");
+        loadPayables();
+      });
+
+      function handleSearch() {
+        searchQuery = document.getElementById("searchInput").value.trim();
+        payablePage = 1;
+        loadPayables();
+      }
+
+      async function loadPayables() {
+        const tbody = document.getElementById("payableTableBody");
+        showLoading(tbody);
+        const params = new URLSearchParams({
+          page: payablePage,
+          size: payableSize,
+        });
+        if (searchQuery) params.set("search", searchQuery);
+        try {
+          const res = await fetch(
+            `/api/suppliers/payables?${params.toString()}`
+          );
+          const data = await res.json();
+          if (!data.success) throw new Error(data.message || "加载失败");
+          renderPayableTable(data.data || []);
+          renderPayablePagination(data.pagination);
+          document.getElementById(
+            "payablePageInfo"
+          ).textContent = `共 ${data.pagination.total} 家`;
+        } catch (e) {
+          showError(e.message, document.getElementById("msgArea"));
+        }
+      }
+
+      function renderPayableTable(rows) {
+        const tbody = document.getElementById("payableTableBody");
+        if (!rows.length) {
+          tbody.innerHTML =
+            '<tr><td colspan="6" class="text-center">暂无未付款供应商</td></tr>';
+          return;
+        }
+        tbody.innerHTML = rows
+          .map(
+            (r) => `
+          <tr>
+            <td>${r.name}</td>
+            <td>${r.contact_person || "-"}</td>
+            <td>${r.phone || "-"}</td>
+            <td>${r.unpaid_count}</td>
+            <td>¥${parseFloat(r.unpaid_amount).toFixed(2)}</td>
+            <td>
+              <button class="btn btn-secondary" onclick="viewSupplierPayables(${
+                r.supplier_id
+              }, '${r.name.replace(/'/g, "\\'")}')">查看</button>
+            </td>
+          </tr>`
+          )
+          .join("");
+      }
+
+      async function viewSupplierPayables(id, name) {
+        selectedSupplierId = id;
+        selectedSupplierName = name || "";
+        document.getElementById("settleBtn").disabled = false;
+        const printBtn = document.getElementById("printBtn");
+        if (printBtn) printBtn.disabled = false;
+        try {
+          const res = await fetch(`/api/suppliers/${id}/payables`);
+          const data = await res.json();
+          if (!data.success) throw new Error(data.message || "获取失败");
+          const orders = data.data.orders || [];
+          const details = data.data.details || [];
+          const obody = document.getElementById("supplierOrdersBody");
+          if (!orders.length)
+            obody.innerHTML =
+              '<tr><td colspan="5" class="text-center">暂无订单</td></tr>';
+          else {
+            obody.innerHTML = orders
+              .map(
+                (o) => `
+              <tr>
+                <td>${o.order_no}</td>
+                <td><span class="status-badge ${
+                  o.status === "delivered"
+                    ? "status-delivered"
+                    : o.status === "stock"
+                    ? "status-stock"
+                    : "status-unknown"
+                }">${
+                  o.status === "delivered"
+                    ? "已交付"
+                    : o.status === "stock"
+                    ? "已入库"
+                    : "-"
+                }</span></td>
+                <td>¥${o.total_amount.toFixed(2)}</td>
+                <td>${o.apply_time || "-"}</td>
+                <td>${o.approve_time || "-"}</td>
+              </tr>`
+              )
+              .join("");
+          }
+          const dbody = document.getElementById("supplierDetailsBody");
+          if (!details.length)
+            dbody.innerHTML =
+              '<tr><td colspan="7" class="text-center">暂无明细</td></tr>';
+          else {
+            dbody.innerHTML = details
+              .map(
+                (d) => `
+              <tr>
+                <td>${
+                  orders.find((o) => o.id === d.purchase_id)?.order_no || "-"
+                }</td>
+                <td>${d.code || "-"}</td>
+                <td>${d.product_name}</td>
+                <td>${d.unit}</td>
+                <td>${d.quantity}</td>
+                <td>¥${d.cost_price.toFixed(2)}</td>
+                <td>¥${d.amount.toFixed(2)}</td>
+              </tr>`
+              )
+              .join("");
+          }
+        } catch (e) {
+          showError(e.message, document.getElementById("msgArea"));
+        }
+      }
+
+      function printStatement() {
+        if (!selectedSupplierId) return;
+        const url = `/printing/payables/statement/${selectedSupplierId}`;
+        window.open(url, "_blank");
+      }
+
+      function renderPayablePagination(p) {
+        const c = document.getElementById("payablePagination");
+        const { page: cp = 1, total_pages = 1 } = p || {};
+        const btns = [];
+        const addBtn = (label, target, disabled = false, active = false) => {
+          btns.push(
+            `<button class="page-btn ${active ? "active" : ""}" ${
+              disabled ? "disabled" : ""
+            } onclick="gotoPagePayable(${target})">${label}</button>`
+          );
+        };
+        addBtn("上一页", Math.max(1, cp - 1), cp <= 1);
+        for (let i = 1; i <= total_pages; i++) {
+          if (i === 1 || i === total_pages || Math.abs(i - cp) <= 2)
+            addBtn(i, i, false, i === cp);
+          else if (i === cp - 3 || i === cp + 3)
+            btns.push('<span style="padding:0 6px;">...</span>');
+        }
+        addBtn("下一页", Math.min(total_pages, cp + 1), cp >= total_pages);
+        c.innerHTML = btns.join("");
+      }
+      function gotoPagePayable(p) {
+        payablePage = p;
+        loadPayables();
+      }
+
+      async function settleSelectedSupplier() {
+        if (!selectedSupplierId) return;
+        if (!confirm("确认将该供应商的所有已交付/已入库采购单结算为已付？"))
+          return;
+        try {
+          const res = await fetch(
+            `/api/suppliers/${selectedSupplierId}/settle`,
+            { method: "POST" }
+          );
+          const data = await res.json();
+          if (data.success) {
+            showSuccess(
+              data.message || "结算成功",
+              document.getElementById("msgArea")
+            );
+            loadPayables();
+            document.getElementById("supplierOrdersBody").innerHTML =
+              '<tr><td colspan="5" class="text-center">请选择上方供应商查看订单</td></tr>';
+            document.getElementById("supplierDetailsBody").innerHTML =
+              '<tr><td colspan="7" class="text-center">暂无明细</td></tr>';
+            selectedSupplierId = null;
+            selectedSupplierName = "";
+            document.getElementById("settleBtn").disabled = true;
+            const printBtn = document.getElementById("printBtn");
+            if (printBtn) printBtn.disabled = true;
+          } else {
+            showError(
+              data.message || "结算失败",
+              document.getElementById("msgArea")
+            );
+          }
+        } catch (e) {
+          showError(e.message, document.getElementById("msgArea"));
+        }
+      }
+    </script>
+  </body>
+</html>

@@ -3,126 +3,143 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>便利店进销存系统 - 首页</title>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 0;
-        background-color: #f5f5f5;
-      }
-      .header {
-        background-color: #007bff;
-        color: white;
-        padding: 15px 20px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-      .header h1 {
-        margin: 0;
-      }
-      .user-info {
-        display: flex;
-        align-items: center;
-        gap: 15px;
-      }
-      .logout-btn {
-        background-color: #dc3545;
-        color: white;
-        padding: 8px 15px;
-        text-decoration: none;
-        border-radius: 4px;
-      }
-      .logout-btn:hover {
-        background-color: #c82333;
-      }
-      .container {
-        max-width: 1200px;
-        margin: 20px auto;
-        padding: 0 20px;
-      }
-      .nav-cards {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 20px;
-        margin-top: 20px;
-      }
-      .nav-card {
-        background: white;
-        padding: 30px;
-        border-radius: 8px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        text-align: center;
-        text-decoration: none;
-        color: #333;
-        transition: transform 0.2s;
-      }
-      .nav-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-      }
-      .nav-card h3 {
-        margin: 0 0 10px 0;
-        color: #007bff;
-      }
-      .nav-card p {
-        margin: 0;
-        color: #666;
-      }
-      .role-badge {
-        background-color: #28a745;
-        color: white;
-        padding: 3px 8px;
-        border-radius: 12px;
-        font-size: 12px;
-      }
-    </style>
+    <title>便利店进销存系统</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
   </head>
   <body>
-    <div class="header">
-      <h1>便利店进销存系统</h1>
-      <div class="user-info">
-        <span>欢迎, {{ user.username }}</span>
-        <span class="role-badge"
-          >{{ '店长' if user.role == 'manager' else '店员' }}</span
-        >
-        <a href="/logout" class="logout-btn">退出登录</a>
+    <!-- 顶部导航栏 -->
+    <header class="navbar">
+      <div class="navbar-content">
+        <div class="navbar-brand">
+          <h1>便利店进销存系统</h1>
+        </div>
+        <div class="navbar-user">
+          <a href="/" class="btn btn-secondary" style="margin-right: 10px"
+            >返回首页</a
+          >
+          <span id="userInfo"></span>
+          <button id="logoutBtn" class="btn btn-secondary">退出登录</button>
+        </div>
       </div>
+    </header>
+
+    <div class="main-container">
+      <!-- 侧边栏 -->
+      <aside class="sidebar">
+        <nav class="sidebar-nav">
+          <ul id="menuList">
+            <!-- 菜单项将通过JavaScript动态生成 -->
+          </ul>
+        </nav>
+      </aside>
+
+      <!-- 主内容区域 -->
+      <main class="content">
+        <div class="content-header">
+          <h2 id="pageTitle">系统首页</h2>
+          <div class="breadcrumb">
+            <span id="breadcrumbPath">首页</span>
+          </div>
+        </div>
+
+        <div class="content-body">
+          <div id="pageContent">
+            <!-- 默认首页内容 -->
+            <div class="dashboard">
+              <div class="welcome-card">
+                <h3>欢迎使用便利店进销存系统</h3>
+                <p>请从左侧菜单选择功能模块开始操作</p>
+              </div>
+
+              <div class="stats-grid">
+                <div class="stat-card">
+                  <h4>今日销售</h4>
+                  <div class="stat-value" id="todaySales">--</div>
+                </div>
+                <div class="stat-card">
+                  <h4>库存预警</h4>
+                  <div class="stat-value" id="stockAlerts">--</div>
+                </div>
+                <div class="stat-card">
+                  <h4>待处理订单</h4>
+                  <div class="stat-value" id="pendingOrders">--</div>
+                </div>
+                <div class="stat-card" id="monthlyProfitCard">
+                  <h4>本月利润</h4>
+                  <div class="stat-value" id="monthlyProfit">--</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
 
-    <div class="container">
-      <div class="nav-cards">
-        {% if user.role == 'manager' %}
-        <a href="/purchase" class="nav-card">
-          <h3>商品进货</h3>
-          <p>采购商品，补充库存</p>
-        </a>
-        <a href="/sales" class="nav-card">
-          <h3>商品销售</h3>
-          <p>销售商品，开具订单</p>
-        </a>
-        {% else %}
-        <a href="/sales" class="nav-card">
-          <h3>商品销售</h3>
-          <p>销售商品，开具订单</p>
-        </a>
-        {% endif %}
+    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+    <script>
+      // 页面初始化
+      function initIndexPage() {
+        console.log("开始初始化首页...");
 
-        <a href="/stock" class="nav-card">
-          <h3>库存管理</h3>
-          <p>
-            查看商品库存{{ '，修改价格' if user.role == 'manager' else '' }}
-          </p>
-        </a>
+        // 清理可能存在的错误数据
+        const userStr = localStorage.getItem("user");
+        const isLoggedIn = localStorage.getItem("isLoggedIn");
 
-        {% if user.role == 'manager' %}
-        <a href="/report" class="nav-card">
-          <h3>日清月结</h3>
-          <p>查看收益和流水统计</p>
-        </a>
-        {% endif %}
-      </div>
-    </div>
+        console.log("登录状态:", isLoggedIn);
+        console.log("用户数据:", userStr);
+
+        if (
+          userStr === "undefined" ||
+          userStr === null ||
+          isLoggedIn !== "true"
+        ) {
+          console.log("清理无效的登录数据");
+          localStorage.removeItem("user");
+          localStorage.removeItem("isLoggedIn");
+          window.location.href = "/login";
+          return;
+        }
+
+        const user = checkLogin();
+        if (!user) return;
+
+        console.log("用户信息:", user);
+
+        // 显示用户信息
+        document.getElementById("userInfo").textContent = `${user.username} (${
+          user.role === "manager" ? "管理员" : "店员"
+        })`;
+
+        // 生成菜单
+        console.log("生成菜单...");
+        generateMenu(user.role);
+
+        // 员工隐藏本月利润卡片
+        const monthlyProfitCard = document.getElementById("monthlyProfitCard");
+        if (monthlyProfitCard && user.role !== "manager") {
+          monthlyProfitCard.style.display = "none";
+        }
+
+        // 加载仪表盘数据
+        console.log("加载仪表盘数据...");
+        loadDashboardData();
+
+        // 绑定退出登录事件
+        const logoutBtn = document.getElementById("logoutBtn");
+        if (logoutBtn) {
+          logoutBtn.addEventListener("click", function (e) {
+            e.preventDefault();
+            console.log("点击退出登录按钮");
+            logout();
+          });
+        }
+      }
+
+      // 页面加载完成后初始化
+      document.addEventListener("DOMContentLoaded", initIndexPage);
+    </script>
   </body>
 </html>

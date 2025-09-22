@@ -1,0 +1,43 @@
+/* 小票打印样式（热敏打印宽度约 58/80mm）*/
+@page {
+  margin: 6mm;
+}
+
+body {
+  background: #fff;
+  color: #000;
+}
+.ticket {
+  width: 280px;
+  margin: 0 auto;
+  padding: 8px 10px;
+}
+.ticket h3 {
+  font-size: 16px;
+  margin: 4px 0;
+}
+.ticket table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.ticket th,
+.ticket td {
+  font-size: 12px;
+  padding: 3px 0;
+}
+.ticket .muted {
+  color: #666;
+  font-size: 12px;
+}
+.ticket .total {
+  border-top: 1px dashed #aaa;
+  margin-top: 6px;
+  padding-top: 6px;
+  font-weight: bold;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>商品管理 - 便利店进销存系统</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+  <body>
+    <!-- 顶部导航栏 -->
+    <header class="navbar">
+      <div class="navbar-content">
+        <div class="navbar-brand">
+          <h1>便利店进销存系统</h1>
+        </div>
+        <div class="navbar-user">
+          <a href="/" class="btn btn-secondary" style="margin-right: 10px"
+            >返回首页</a
+          >
+          <span id="userInfo"></span>
+          <button id="logoutBtn" class="btn btn-secondary">退出登录</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="main-container">
+      <!-- 侧边栏 -->
+      <aside class="sidebar">
+        <nav class="sidebar-nav">
+          <ul id="menuList">
+            <!-- 菜单项将通过JavaScript动态生成 -->
+          </ul>
+        </nav>
+      </aside>
+
+      <!-- 主内容区域 -->
+      <main class="content">
+        <div class="content-header">
+          <h2>商品管理</h2>
+          <div class="breadcrumb">
+            <span>首页 > 商品管理</span>
+          </div>
+        </div>
+
+        <div class="content-body">
+          <!-- 功能按钮区域 -->
+          <div class="action-bar">
+            <button id="addProductBtn" class="btn btn-primary">
+              <span>➕ 添加商品</span>
+            </button>
+            <div class="search-container">
+              <input
+                type="text"
+                id="searchInput"
+                placeholder="搜索商品编码、名称或品牌..."
+                class="search-input"
+              />
+              <select id="categoryFilter" class="filter-select">
+                <option value="">全部分类</option>
+              </select>
+              <select id="statusFilter" class="filter-select">
+                <option value="">全部状态</option>
+                <option value="active">启用</option>
+                <option value="inactive">禁用</option>
+              </select>
+              <button id="searchBtn" class="btn btn-secondary">搜索</button>
+              <button id="resetBtn" class="btn btn-secondary">重置</button>
+            </div>
+          </div>
+
+          <!-- 商品列表表格 -->
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>商品编码</th>
+                  <th>商品名称</th>
+                  <th>分类</th>
+                  <th>品牌</th>
+                  <th>单位</th>
+                  <th>销售价格</th>
+                  <th>库存数量</th>
+                  <th>状态</th>
+                  <th>创建时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="productTableBody">
+                <!-- 数据将通过JavaScript动态加载 -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 分页组件 -->
+          <div class="pagination-container">
+            <div class="pagination-info">
+              <span id="paginationInfo">显示第 0 到 0 项，共 0 项</span>
+            </div>
+            <div class="pagination">
+              <button id="prevPageBtn" class="btn btn-secondary" disabled>
+                上一页
+              </button>
+              <span id="pageNumbers"></span>
+              <button id="nextPageBtn" class="btn btn-secondary" disabled>
+                下一页
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 添加/编辑商品模态框 -->
+        <div id="productModal" class="modal" style="display: none">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3 id="modalTitle">添加商品</h3>
+              <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+              <form id="productForm">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="productCode">商品编码</label>
+                    <input
+                      type="text"
+                      id="productCode"
+                      name="code"
+                      placeholder="可选，留空自动生成"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label for="productName">商品名称 *</label>
+                    <input
+                      type="text"
+                      id="productName"
+                      name="name"
+                      required
+                      placeholder="请输入商品名称"
+                    />
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="productCategory">分类</label>
+                    <input
+                      type="text"
+                      id="productCategory"
+                      name="category"
+                      placeholder="请输入商品分类"
+                      list="categoryList"
+                    />
+                    <datalist id="categoryList"></datalist>
+                  </div>
+                  <div class="form-group">
+                    <label for="productBrand">品牌</label>
+                    <input
+                      type="text"
+                      id="productBrand"
+                      name="brand"
+                      placeholder="请输入品牌"
+                      list="brandList"
+                    />
+                    <datalist id="brandList"></datalist>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="productUnit">单位</label>
+                    <input
+                      type="text"
+                      id="productUnit"
+                      name="unit"
+                      value="件"
+                      placeholder="件/个/盒/瓶等"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label for="productPrice">销售价格 *</label>
+                    <input
+                      type="number"
+                      id="productPrice"
+                      name="selling_price"
+                      step="0.01"
+                      min="0.01"
+                      required
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="productRemark">备注</label>
+                  <textarea
+                    id="productRemark"
+                    name="remark"
+                    rows="3"
+                    placeholder="商品备注信息"
+                  ></textarea>
+                </div>
+              </form>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" id="cancelBtn">
+                取消
+              </button>
+              <button type="button" class="btn btn-primary" id="saveBtn">
+                保存
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 加载提示 -->
+        <div
+          id="loadingIndicator"
+          class="loading-overlay"
+          style="display: none"
+        >
+          <div class="loading-spinner"></div>
+          <div class="loading-text">正在加载...</div>
+        </div>
+      </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+    <script>
+      // 全局变量
+      let currentPage = 1;
+      let pageSize = 10;
+      let currentEditId = null;
+
+      // 页面初始化
+      document.addEventListener("DOMContentLoaded", function () {
+        initCommonPage("products");
+        initProductPage();
+      });
+
+      // 初始化商品页面
+      function initProductPage() {
+        loadProducts();
+        loadCategories();
+        loadBrands();
+        bindEvents();
+      }
+
+      // 绑定事件
+      function bindEvents() {
+        // 添加商品按钮
+        document
+          .getElementById("addProductBtn")
+          .addEventListener("click", () => {
+            openProductModal();
+          });
+
+        // 搜索按钮
+        document.getElementById("searchBtn").addEventListener("click", () => {
+          currentPage = 1;
+          loadProducts();
+        });
+
+        // 重置按钮
+        document.getElementById("resetBtn").addEventListener("click", () => {
+          document.getElementById("searchInput").value = "";
+          document.getElementById("categoryFilter").value = "";
+          document.getElementById("statusFilter").value = "";
+          currentPage = 1;
+          loadProducts();
+        });
+
+        // 搜索框回车
+        document
+          .getElementById("searchInput")
+          .addEventListener("keypress", (e) => {
+            if (e.key === "Enter") {
+              currentPage = 1;
+              loadProducts();
+            }
+          });
+
+        // 模态框事件
+        document
+          .querySelector(".close")
+          .addEventListener("click", closeProductModal);
+        document
+          .getElementById("cancelBtn")
+          .addEventListener("click", closeProductModal);
+        document
+          .getElementById("saveBtn")
+          .addEventListener("click", saveProduct);
+
+        // 点击模态框外部关闭
+        window.addEventListener("click", (e) => {
+          const modal = document.getElementById("productModal");
+          if (e.target === modal) {
+            closeProductModal();
+          }
+        });
+
+        // 分页按钮
+        document.getElementById("prevPageBtn").addEventListener("click", () => {
+          if (currentPage > 1) {
+            currentPage--;
+            loadProducts();
+          }
+        });
+
+        document.getElementById("nextPageBtn").addEventListener("click", () => {
+          currentPage++;
+          loadProducts();
+        });
+      }
+
+      // 加载商品列表
+      async function loadProducts() {
+        try {
+          showLoading(true);
+
+          const params = new URLSearchParams({
+            page: currentPage,
+            size: pageSize,
+            search: document.getElementById("searchInput").value,
+            category: document.getElementById("categoryFilter").value,
+            status: document.getElementById("statusFilter").value,
+          });
+
+          const response = await fetch(`/api/products?${params}`);
+          const data = await response.json();
+
+          if (data.success) {
+            renderProductTable(data.data);
+            renderPagination(data.pagination);
+          } else {
+            showError("加载商品列表失败: " + data.message);
+          }
+        } catch (error) {
+          showError("网络错误: " + error.message);
+        } finally {
+          showLoading(false);
+        }
+      }
+
+      // 渲染商品表格
+      function renderProductTable(products) {
+        const tbody = document.getElementById("productTableBody");
+
+        if (products.length === 0) {
+          tbody.innerHTML =
+            '<tr><td colspan="10" class="text-center">暂无数据</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = products
+          .map(
+            (product) => `
+          <tr>
+            <td>${product.code || "-"}</td>
+            <td>${product.name}</td>
+            <td>${product.category || "-"}</td>
+            <td>${product.brand || "-"}</td>
+            <td>${product.unit}</td>
+            <td>¥${product.selling_price.toFixed(2)}</td>
+            <td>${product.stock_quantity}</td>
+            <td>
+              <span class="status-badge ${
+                product.status === "active"
+                  ? "status-active"
+                  : "status-inactive"
+              }">
+                ${product.status === "active" ? "启用" : "禁用"}
+              </span>
+            </td>
+            <td>${product.created_at}</td>
+            <td class="action-buttons">
+              <button class="btn-link" onclick="editProduct(${
+                product.id
+              })" title="编辑">
+                ✏️
+              </button>
+              <button class="btn-link" onclick="toggleProductStatus(${
+                product.id
+              }, '${product.status}')" title="${
+              product.status === "active" ? "禁用" : "启用"
+            }">
+                ${product.status === "active" ? "🚫" : "✅"}
+              </button>
+              <button class="btn-link" onclick="deleteProduct(${
+                product.id
+              })" title="删除">
+                🗑️
+              </button>
+            </td>
+          </tr>
+        `
+          )
+          .join("");
+      }
+
+      // 渲染分页
+      function renderPagination(pagination) {
+        const info = document.getElementById("paginationInfo");
+        const start = (pagination.page - 1) * pagination.size + 1;
+        const end = Math.min(
+          pagination.page * pagination.size,
+          pagination.total
+        );
+        info.textContent = `显示第 ${start} 到 ${end} 项，共 ${pagination.total} 项`;
+
+        document.getElementById("prevPageBtn").disabled = !pagination.has_prev;
+        document.getElementById("nextPageBtn").disabled = !pagination.has_next;
+
+        // 生成页码
+        const pageNumbers = document.getElementById("pageNumbers");
+        const pages = [];
+        const startPage = Math.max(1, pagination.page - 2);
+        const endPage = Math.min(pagination.total_pages, pagination.page + 2);
+
+        for (let i = startPage; i <= endPage; i++) {
+          pages.push(`
+            <button class="page-btn ${i === pagination.page ? "active" : ""}" 
+                    onclick="goToPage(${i})">${i}</button>
+          `);
+        }
+
+        pageNumbers.innerHTML = pages.join("");
+      }
+
+      // 跳转到指定页
+      function goToPage(page) {
+        currentPage = page;
+        loadProducts();
+      }
+
+      // 加载分类列表
+      async function loadCategories() {
+        try {
+          const response = await fetch("/api/products/categories");
+          const data = await response.json();
+
+          if (data.success) {
+            const select = document.getElementById("categoryFilter");
+            const datalist = document.getElementById("categoryList");
+
+            // 填充筛选下拉框
+            data.data.forEach((category) => {
+              const option = document.createElement("option");
+              option.value = category;
+              option.textContent = category;
+              select.appendChild(option);
+            });
+
+            // 填充输入提示
+            datalist.innerHTML = data.data
+              .map((category) => `<option value="${category}"></option>`)
+              .join("");
+          }
+        } catch (error) {
+          console.error("加载分类失败:", error);
+        }
+      }
+
+      // 加载品牌列表
+      async function loadBrands() {
+        try {
+          const response = await fetch("/api/products/brands");
+          const data = await response.json();
+
+          if (data.success) {
+            const datalist = document.getElementById("brandList");
+            datalist.innerHTML = data.data
+              .map((brand) => `<option value="${brand}"></option>`)
+              .join("");
+          }
+        } catch (error) {
+          console.error("加载品牌失败:", error);
+        }
+      }
+
+      // 打开商品模态框
+      function openProductModal(productId = null) {
+        currentEditId = productId;
+        const modal = document.getElementById("productModal");
+        const title = document.getElementById("modalTitle");
+        const form = document.getElementById("productForm");
+
+        title.textContent = productId ? "编辑商品" : "添加商品";
+        form.reset();
+
+        if (productId) {
+          loadProductForEdit(productId);
+        }
+
+        modal.style.display = "block";
+      }
+
+      // 加载商品数据用于编辑
+      async function loadProductForEdit(productId) {
+        try {
+          const response = await fetch(`/api/products/${productId}`);
+          const data = await response.json();
+
+          if (data.success) {
+            const product = data.data;
+            document.getElementById("productCode").value = product.code || "";
+            document.getElementById("productName").value = product.name;
+            document.getElementById("productCategory").value =
+              product.category || "";
+            document.getElementById("productBrand").value = product.brand || "";
+            document.getElementById("productUnit").value = product.unit;
+            document.getElementById("productPrice").value =
+              product.selling_price;
+            document.getElementById("productRemark").value =
+              product.remark || "";
+          } else {
+            showError("加载商品数据失败: " + data.message);
+          }
+        } catch (error) {
+          showError("网络错误: " + error.message);
+        }
+      }
+
+      // 关闭商品模态框
+      function closeProductModal() {
+        document.getElementById("productModal").style.display = "none";
+        currentEditId = null;
+      }
+
+      // 保存商品
+      async function saveProduct() {
+        try {
+          const form = document.getElementById("productForm");
+          const formData = new FormData(form);
+          const data = Object.fromEntries(formData.entries());
+
+          // 验证必填字段
+          if (!data.name || !data.selling_price) {
+            showError("请填写商品名称和销售价格");
+            return;
+          }
+
+          const url = currentEditId
+            ? `/api/products/${currentEditId}`
+            : "/api/products";
+          const method = currentEditId ? "PUT" : "POST";
+
+          const response = await fetch(url, {
+            method: method,
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(data),
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            showSuccess(result.message);
+            closeProductModal();
+            loadProducts();
+          } else {
+            showError(result.message);
+          }
+        } catch (error) {
+          showError("网络错误: " + error.message);
+        }
+      }
+
+      // 编辑商品
+      function editProduct(productId) {
+        openProductModal(productId);
+      }
+
+      // 切换商品状态
+      async function toggleProductStatus(productId, currentStatus) {
+        const newStatus = currentStatus === "active" ? "inactive" : "active";
+        const action = newStatus === "active" ? "启用" : "禁用";
+
+        if (!confirm(`确定要${action}该商品吗？`)) return;
+
+        try {
+          const response = await fetch(`/api/products/${productId}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ status: newStatus }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            showSuccess(`商品${action}成功`);
+            loadProducts();
+          } else {
+            showError(data.message);
+          }
+        } catch (error) {
+          showError("网络错误: " + error.message);
+        }
+      }
+
+      // 删除商品
+      async function deleteProduct(productId) {
+        if (!confirm("确定要删除该商品吗？删除后不可恢复！")) return;
+
+        try {
+          const response = await fetch(`/api/products/${productId}`, {
+            method: "DELETE",
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            showSuccess("商品删除成功");
+            loadProducts();
+          } else {
+            showError(data.message);
+          }
+        } catch (error) {
+          showError("网络错误: " + error.message);
+        }
+      }
+
+      // 显示加载状态
+      function showLoading(show) {
+        const indicator = document.getElementById("loadingIndicator");
+        indicator.style.display = show ? "flex" : "none";
+      }
+
+      // 显示错误信息
+      function showError(message) {
+        alert("错误: " + message);
+      }
+
+      // 显示成功信息
+      function showSuccess(message) {
+        alert("成功: " + message);
+      }
+    </script>
+  </body>
+</html>

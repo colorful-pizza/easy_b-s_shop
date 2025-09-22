@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>进货管理 - 便利店进销存系统</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+  <body>
+    <!-- 顶部导航栏 -->
+    <header class="navbar">
+      <div class="navbar-content">
+        <div class="navbar-brand">
+          <h1>便利店进销存系统</h1>
+        </div>
+        <div class="navbar-user">
+          <a href="/" class="btn btn-secondary" style="margin-right: 10px"
+            >返回首页</a
+          >
+          <span id="userInfo"></span>
+          <button id="logoutBtn" class="btn btn-secondary">退出登录</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="main-container">
+      <!-- 侧边栏 -->
+      <aside class="sidebar">
+        <nav class="sidebar-nav">
+          <ul id="menuList">
+            <!-- 菜单项将通过JavaScript动态生成 -->
+          </ul>
+        </nav>
+      </aside>
+
+      <!-- 主内容区域 -->
+      <main class="content">
+        <div class="content-header">
+          <h2>进货管理</h2>
+          <div class="breadcrumb">
+            <span>首页 > 进货管理</span>
+          </div>
+        </div>
+
+        <div class="content-body">
+          <!-- 操作栏 -->
+          <div class="action-bar">
+            <button class="btn btn-primary" onclick="openImportModal()">
+              导入采购订单
+            </button>
+            <div class="search-container">
+              <input
+                id="searchPoInput"
+                class="search-input"
+                placeholder="搜索采购单号/供应商"
+                onkeyup="handlePoSearch()"
+              />
+            </div>
+          </div>
+
+          <!-- 进货单基本信息 -->
+          <form id="incomingForm">
+            <div class="form-row">
+              <div class="form-group">
+                <label>关联采购单号</label>
+                <input
+                  id="purchaseOrderNo"
+                  placeholder="通过导入选择"
+                  readonly
+                />
+                <input type="hidden" id="purchaseId" />
+              </div>
+              <div class="form-group">
+                <label>供应商 *</label>
+                <select id="supplierSelect" required>
+                  <option value="">请选择供应商</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>入库日期 *</label>
+                <input id="incomingDate" type="date" required />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>备注</label>
+                <textarea
+                  id="incomingRemark"
+                  placeholder="备注（可选）"
+                ></textarea>
+              </div>
+            </div>
+          </form>
+
+          <!-- 明细表 -->
+          <div class="products-section">
+            <div style="margin-bottom: 10px; display: flex; gap: 10px">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                onclick="openAddProductSelector()"
+              >
+                添加商品
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary"
+                onclick="clearDetails()"
+              >
+                清空明细
+              </button>
+            </div>
+            <div class="products-table-container">
+              <table class="products-table" id="detailsTable">
+                <thead>
+                  <tr>
+                    <th>商品编码</th>
+                    <th>商品名称</th>
+                    <th>单位</th>
+                    <th>数量</th>
+                    <th>成本单价</th>
+                    <th>小计</th>
+                    <th>生产日期</th>
+                    <th>到期日期</th>
+                    <th>批号</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="detailsTableBody"></tbody>
+              </table>
+            </div>
+            <div class="total-section">
+              <span class="total-label">进货总金额：</span>
+              <span class="total-amount" id="totalAmount">￥0.00</span>
+              <div style="flex: 1"></div>
+              <button class="btn btn-primary" onclick="saveIncoming()">
+                保存进货单
+              </button>
+            </div>
+          </div>
+
+          <!-- 历史入库记录 -->
+          <div class="section" style="margin-top: 20px">
+            <div
+              class="section-header"
+              style="
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+              "
+            >
+              <h3>历史入库记录</h3>
+              <div class="search-container">
+                <input
+                  id="historySearchInput"
+                  class="search-input"
+                  placeholder="搜索入库单号/供应商/经手人"
+                  onkeyup="reloadIncomingHistory(true)"
+                />
+              </div>
+            </div>
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>入库单号</th>
+                    <th>采购单号</th>
+                    <th>供应商</th>
+                    <th>入库日期</th>
+                    <th>金额</th>
+                    <th>经手人</th>
+                    <th>创建时间</th>
+                  </tr>
+                </thead>
+                <tbody id="incomingHistoryBody"></tbody>
+              </table>
+            </div>
+            <div class="pagination-container">
+              <div class="page-info">
+                <span id="incomingHistoryInfo">共 0 条记录</span>
+              </div>
+              <div id="incomingHistoryPagination" class="pagination"></div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- 导入采购单弹窗 -->
+    <div id="importModal" class="modal" style="display: none">
+      <div class="modal-content" style="max-width: 900px">
+        <div class="modal-header">
+          <h3>导入采购订单（仅显示已交付）</h3>
+          <span class="close" onclick="closeImportModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+          <div class="action-bar" style="margin: 0 0 10px 0">
+            <div class="search-container">
+              <input
+                id="poSearchInput"
+                class="search-input"
+                placeholder="搜索订单号/供应商/申请人"
+                onkeyup="reloadPoList()"
+              />
+            </div>
+          </div>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>订单号</th>
+                  <th>供应商</th>
+                  <th>状态</th>
+                  <th>总金额</th>
+                  <th>申请人</th>
+                  <th>申请时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="poTableBody"></tbody>
+            </table>
+          </div>
+          <div class="pagination-container">
+            <div class="page-info">
+              <span id="poPageInfo">共 0 条记录</span>
+            </div>
+            <div id="poPagination" class="pagination"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 商品选择器（可选，用于补充或修改明细） -->
+    <div id="productSelectorModal" class="modal" style="display: none">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>选择商品</h3>
+          <span class="close" onclick="closeProductSelector()">&times;</span>
+        </div>
+        <div class="modal-body">
+          <div class="search-container">
+            <input
+              id="productSearchInput"
+              class="search-input"
+              placeholder="搜索商品名称/编码"
+              onkeyup="renderProductsList()"
+            />
+          </div>
+          <div id="productsList" class="products-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 加载遮罩 -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">加载中...</div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+    <script>
+      let suppliers = [];
+      let products = [];
+      let details = [];
+      let currentPoPage = 1,
+        poPageSize = 10,
+        poSearch = "";
+
+      document.addEventListener("DOMContentLoaded", async () => {
+        initCommonPage("incoming");
+        document.getElementById("incomingDate").valueAsDate = new Date();
+        await Promise.all([loadSuppliers(), loadProducts()]);
+        reloadIncomingHistory();
+      });
+
+      function showLoading() {
+        document.getElementById("loadingOverlay").style.display = "flex";
+      }
+      function hideLoading() {
+        document.getElementById("loadingOverlay").style.display = "none";
+      }
+      function showError(msg) {
+        alert(msg);
+      }
+      function showSuccess(msg) {
+        alert(msg);
+      }
+
+      async function loadSuppliers() {
+        try {
+          const res = await fetch("/api/suppliers?size=1000&status=active", {
+            headers: {
+              Authorization: "Bearer " + localStorage.getItem("token"),
+            },
+          });
+          const data = await res.json();
+          if (data.success) {
+            suppliers = data.data;
+            fillSupplierSelect();
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      function fillSupplierSelect() {
+        const sel = document.getElementById("supplierSelect");
+        sel.innerHTML = '<option value="">请选择供应商</option>';
+        suppliers.forEach((s) => sel.appendChild(new Option(s.name, s.id)));
+      }
+
+      async function loadProducts() {
+        try {
+          const res = await fetch("/api/products?size=1000&status=active", {
+            headers: {
+              Authorization: "Bearer " + localStorage.getItem("token"),
+            },
+          });
+          const data = await res.json();
+          if (data.success) {
+            products = data.data;
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      function openImportModal() {
+        currentPoPage = 1;
+        poSearch = "";
+        reloadPoList();
+        document.getElementById("importModal").style.display = "flex";
+      }
+      function closeImportModal() {
+        document.getElementById("importModal").style.display = "none";
+      }
+      function handlePoSearch() {
+        poSearch = document.getElementById("searchPoInput").value.trim();
+        currentPoPage = 1;
+        reloadPoList();
+      }
+
+      async function reloadPoList() {
+        // 只显示已交付的采购订单，方便导入
+        const modalInput = document.getElementById("poSearchInput");
+        if (modalInput) {
+          poSearch = modalInput.value.trim();
+        }
+        const params = new URLSearchParams({
+          page: currentPoPage,
+          size: poPageSize,
+        });
+        if (poSearch) params.append("search", poSearch);
+        const res = await fetch("/api/purchase-orders?" + params.toString(), {
+          headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+        });
+        const data = await res.json();
+        if (!data.success) {
+          showError(data.message || "加载采购订单失败");
+          return;
+        }
+        const list = (data.data || []).filter((o) => o.status === "delivered");
+        renderPoTable(list);
+        renderPoPagination(data.pagination);
+      }
+      function renderPoTable(list) {
+        const tbody = document.getElementById("poTableBody");
+        if (!list.length) {
+          tbody.innerHTML =
+            '<tr><td colspan="7" class="text-center">暂无可导入的采购订单</td></tr>';
+          return;
+        }
+        tbody.innerHTML = list
+          .map(
+            (o) => `
+          <tr>
+            <td>${o.order_no}</td>
+            <td>${o.supplier_name || ""}</td>
+            <td><span class="status-badge status-delivered">已交付</span></td>
+            <td>￥${(o.total_amount || 0).toFixed(2)}</td>
+            <td>${o.apply_user_name || ""}</td>
+            <td>${o.apply_time || ""}</td>
+            <td>
+              <button class='btn btn-primary btn-small' onclick='importPurchase(${
+                o.id
+              })'>导入</button>
+            </td>
+          </tr>
+        `
+          )
+          .join("");
+      }
+      function renderPoPagination(p) {
+        const infoEl = document.getElementById("poPageInfo");
+        const el = document.getElementById("poPagination");
+        if (!p) {
+          infoEl.textContent = "";
+          el.innerHTML = "";
+          return;
+        }
+        infoEl.textContent = `共 ${p.total} 条记录，第 ${p.page} / ${p.total_pages} 页`;
+        let html = "";
+        if (p.has_prev)
+          html += `<button class="page-btn" onclick="gotoPoPage(${
+            p.page - 1
+          })">上一页</button>`;
+        const start = Math.max(1, p.page - 2),
+          end = Math.min(p.total_pages, p.page + 2);
+        for (let i = start; i <= end; i++)
+          html += `<button class="page-btn ${
+            i === p.page ? "active" : ""
+          }" onclick="gotoPoPage(${i})">${i}</button>`;
+        if (p.has_next)
+          html += `<button class="page-btn" onclick="gotoPoPage(${
+            p.page + 1
+          })">下一页</button>`;
+        el.innerHTML = html;
+      }
+      function gotoPoPage(p) {
+        currentPoPage = p;
+        reloadPoList();
+      }
+
+      async function importPurchase(id) {
+        // 从采购订单拉取详情，填充到进货单明细
+        try {
+          const res = await fetch(`/api/purchase-orders/${id}`, {
+            headers: {
+              Authorization: "Bearer " + localStorage.getItem("token"),
+            },
+          });
+          const data = await res.json();
+          if (!data.success)
+            return showError(data.message || "获取采购订单详情失败");
+          const order = data.data.order; // 注意后端结构 {order, details}
+          const dets = data.data.details;
+          document.getElementById("purchaseOrderNo").value = order.order_no;
+          document.getElementById("purchaseId").value = order.id;
+          document.getElementById("supplierSelect").value = order.supplier_id;
+          // 将采购明细转成进货明细结构
+          details = dets.map((d) => ({
+            product_id: d.product_id,
+            code: d.code,
+            name: d.product_name,
+            unit: d.unit,
+            quantity: d.quantity,
+            cost_price: d.cost_price,
+            amount: d.amount,
+            production_date: "",
+            expiry_date: "",
+            batch_no: "",
+            remark: d.remark || "",
+          }));
+          renderDetails();
+          closeImportModal();
+        } catch (e) {
+          showError("网络错误: " + e.message);
+        }
+      }
+
+      // 模板导入功能移除：仅允许导入已交付订单并关联采购单号
+
+      function renderDetails() {
+        const tbody = document.getElementById("detailsTableBody");
+        if (!details.length) {
+          tbody.innerHTML =
+            '<tr><td colspan="10" class="text-center">暂无明细</td></tr>';
+          updateTotal();
+          return;
+        }
+        tbody.innerHTML = details
+          .map(
+            (it, idx) => `
+          <tr>
+            <td>${it.code || ""}</td>
+            <td>${it.name || ""}</td>
+            <td>${it.unit || ""}</td>
+            <td><input class='form-input-small' type='number' min='1' step='1' value='${
+              it.quantity || 1
+            }' onchange='onQtyChange(${idx}, this.value)' /></td>
+            <td><input class='form-input-small' type='number' min='0' step='0.01' value='${
+              it.cost_price || 0
+            }' onchange='onPriceChange(${idx}, this.value)' /></td>
+            <td>￥${(it.amount || 0).toFixed(2)}</td>
+            <td><input class='form-input-small' type='date' value='${
+              it.production_date || ""
+            }' onchange='onProdDate(${idx}, this.value)' /></td>
+            <td><input class='form-input-small' type='date' value='${
+              it.expiry_date || ""
+            }' onchange='onExpDate(${idx}, this.value)' /></td>
+            <td><input class='form-input-small' value='${
+              it.batch_no || ""
+            }' onchange='onBatch(${idx}, this.value)' /></td>
+            <td><button class='btn-link' title='移除' onclick='removeDetail(${idx})'>🗑️</button></td>
+          </tr>
+        `
+          )
+          .join("");
+        updateTotal();
+      }
+      function onQtyChange(i, v) {
+        const q = parseFloat(v) || 0;
+        details[i].quantity = q;
+        details[i].amount = q * (parseFloat(details[i].cost_price) || 0);
+        renderDetails();
+      }
+      function onPriceChange(i, v) {
+        const p = parseFloat(v) || 0;
+        details[i].cost_price = p;
+        details[i].amount = (parseFloat(details[i].quantity) || 0) * p;
+        renderDetails();
+      }
+      function onProdDate(i, v) {
+        details[i].production_date = v;
+      }
+      function onExpDate(i, v) {
+        details[i].expiry_date = v;
+      }
+      function onBatch(i, v) {
+        details[i].batch_no = v;
+      }
+      function removeDetail(i) {
+        details.splice(i, 1);
+        renderDetails();
+      }
+      function clearDetails() {
+        details = [];
+        renderDetails();
+      }
+      function updateTotal() {
+        const total = details.reduce(
+          (s, it) => s + (parseFloat(it.amount) || 0),
+          0
+        );
+        document.getElementById("totalAmount").textContent =
+          "￥" + total.toFixed(2);
+      }
+
+      function openAddProductSelector() {
+        renderProductsList();
+        document.getElementById("productSelectorModal").style.display = "flex";
+      }
+      function closeProductSelector() {
+        document.getElementById("productSelectorModal").style.display = "none";
+      }
+      function renderProductsList() {
+        const keyword = (
+          document.getElementById("productSearchInput").value || ""
+        ).toLowerCase();
+        const list = products.filter(
+          (p) =>
+            (p.name || "").toLowerCase().includes(keyword) ||
+            (p.code || "").toLowerCase().includes(keyword)
+        );
+        const container = document.getElementById("productsList");
+        if (!list.length) {
+          container.innerHTML =
+            '<div class="text-center p-10">未找到商品</div>';
+          return;
+        }
+        container.innerHTML = list
+          .map(
+            (p) => `
+          <div class='product-item'>
+            <div class='product-info'>
+              <div class='product-name'>${p.name}</div>
+              <div class='product-code'>编码: ${p.code}</div>
+              <div class='product-price'>建议成本: ￥${(
+                p.cost_price || 0
+              ).toFixed(2)}</div>
+            </div>
+            <button class='btn btn-primary btn-small' onclick='addProduct(${
+              p.id
+            })'>选择</button>
+          </div>
+        `
+          )
+          .join("");
+      }
+      function addProduct(pid) {
+        const p = products.find((x) => x.id === pid);
+        if (!p) return;
+        details.push({
+          product_id: p.id,
+          code: p.code,
+          name: p.name,
+          unit: p.unit,
+          quantity: 1,
+          cost_price: parseFloat(p.cost_price || 0),
+          amount: parseFloat(p.cost_price || 0),
+          production_date: "",
+          expiry_date: "",
+          batch_no: "",
+          remark: "",
+        });
+        renderDetails();
+      }
+
+      async function saveIncoming() {
+        // 校验
+        const supplier_id = parseInt(
+          document.getElementById("supplierSelect").value || ""
+        );
+        const incoming_date = document.getElementById("incomingDate").value;
+        const remark = document.getElementById("incomingRemark").value.trim();
+        const purchase_id =
+          parseInt(document.getElementById("purchaseId").value || "") || null;
+        if (!supplier_id) return showError("请选择供应商");
+        if (!incoming_date) return showError("请选择入库日期");
+        if (!details.length) return showError("请添加至少一个入库明细");
+        for (const d of details) {
+          if (
+            !d.product_id ||
+            !d.quantity ||
+            d.quantity <= 0 ||
+            !d.cost_price ||
+            d.cost_price <= 0
+          ) {
+            return showError("明细存在无效的数量或单价");
+          }
+        }
+
+        try {
+          showLoading();
+          const payload = {
+            supplier_id,
+            incoming_date,
+            remark,
+            details: details.map((d) => ({
+              product_id: d.product_id,
+              quantity: d.quantity,
+              cost_price: d.cost_price,
+              production_date: d.production_date || null,
+              expiry_date: d.expiry_date || null,
+              batch_no: d.batch_no || null,
+              remark: d.remark || "",
+            })),
+            purchase_id,
+          };
+          const res = await fetch("/api/incoming-orders", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + localStorage.getItem("token"),
+            },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          if (!data.success) return showError(data.message || "保存失败");
+          showSuccess("保存成功");
+          // 清空表单
+          document.getElementById("incomingForm").reset();
+          document.getElementById("purchaseOrderNo").value = "";
+          document.getElementById("purchaseId").value = "";
+          document.getElementById("incomingDate").valueAsDate = new Date();
+          details = [];
+          renderDetails();
+          reloadIncomingHistory();
+        } catch (e) {
+          showError("网络错误: " + e.message);
+        } finally {
+          hideLoading();
+        }
+      }
+
+      // 历史入库记录逻辑
+      let incomingHistoryPage = 1,
+        incomingHistorySize = 10,
+        incomingHistorySearch = "";
+      function gotoIncomingHistoryPage(p) {
+        incomingHistoryPage = p;
+        reloadIncomingHistory();
+      }
+      async function reloadIncomingHistory(reset) {
+        if (reset) {
+          incomingHistoryPage = 1;
+        }
+        const kwEl = document.getElementById("historySearchInput");
+        incomingHistorySearch = kwEl ? kwEl.value.trim() : "";
+        const params = new URLSearchParams({
+          page: incomingHistoryPage,
+          size: incomingHistorySize,
+        });
+        if (incomingHistorySearch)
+          params.append("search", incomingHistorySearch);
+        const res = await fetch("/api/incoming-orders?" + params.toString(), {
+          headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+        });
+        const data = await res.json();
+        if (!data.success) {
+          return;
+        }
+        renderIncomingHistoryTable(data.data || []);
+        renderIncomingHistoryPagination(data.pagination);
+      }
+      function renderIncomingHistoryTable(rows) {
+        const tbody = document.getElementById("incomingHistoryBody");
+        if (!rows.length) {
+          tbody.innerHTML =
+            '<tr><td colspan="7" class="text-center">暂无入库记录</td></tr>';
+          return;
+        }
+        tbody.innerHTML = rows
+          .map(
+            (r) => `
+          <tr>
+            <td>${r.order_no}</td>
+            <td>${r.purchase_order_no || ""}</td>
+            <td>${r.supplier_name || ""}</td>
+            <td>${r.incoming_date || ""}</td>
+            <td>￥${(r.total_amount || 0).toFixed(2)}</td>
+            <td>${r.user_name || ""}</td>
+            <td>${r.created_at || ""}</td>
+          </tr>
+        `
+          )
+          .join("");
+      }
+      function renderIncomingHistoryPagination(p) {
+        const infoEl = document.getElementById("incomingHistoryInfo");
+        const el = document.getElementById("incomingHistoryPagination");
+        if (!p) {
+          infoEl.textContent = "";
+          el.innerHTML = "";
+          return;
+        }
+        infoEl.textContent = `共 ${p.total} 条记录，第 ${p.page} / ${p.total_pages} 页`;
+        let html = "";
+        if (p.has_prev)
+          html += `<button class="page-btn" onclick="gotoIncomingHistoryPage(${
+            p.page - 1
+          })">上一页</button>`;
+        const start = Math.max(1, p.page - 2),
+          end = Math.min(p.total_pages, p.page + 2);
+        for (let i = start; i <= end; i++)
+          html += `<button class="page-btn ${
+            i === p.page ? "active" : ""
+          }" onclick="gotoIncomingHistoryPage(${i})">${i}</button>`;
+        if (p.has_next)
+          html += `<button class="page-btn" onclick="gotoIncomingHistoryPage(${
+            p.page + 1
+          })">下一页</button>`;
+        el.innerHTML = html;
+      }
+    </script>
+  </body>
+</html>

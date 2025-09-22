@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>库存查询 - 便利店进销存系统</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+  <body>
+    <!-- 顶部导航栏 -->
+    <header class="navbar">
+      <div class="navbar-content">
+        <div class="navbar-brand">
+          <h1>便利店进销存系统</h1>
+        </div>
+        <div class="navbar-user">
+          <a href="/" class="btn btn-secondary" style="margin-right: 10px"
+            >返回首页</a
+          >
+          <span id="userInfo"></span>
+          <button id="logoutBtn" class="btn btn-secondary">退出登录</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="main-container">
+      <!-- 侧边栏 -->
+      <aside class="sidebar">
+        <nav class="sidebar-nav">
+          <ul id="menuList">
+            <!-- 菜单项将通过JavaScript动态生成 -->
+          </ul>
+        </nav>
+      </aside>
+
+      <!-- 主内容区域 -->
+      <main class="content">
+        <div class="content-header">
+          <h2>库存查询</h2>
+          <div class="breadcrumb">
+            <span>首页 > 库存查询</span>
+          </div>
+        </div>
+
+        <div class="content-body">
+          <!-- 操作栏 -->
+          <div class="action-bar">
+            <div class="search-container">
+              <input
+                type="text"
+                class="search-input"
+                id="searchInput"
+                placeholder="搜索商品编码、名称、品牌"
+                onkeyup="handleSearch()"
+              />
+              <select
+                class="filter-select"
+                id="categoryFilter"
+                onchange="handleFilter()"
+              >
+                <option value="">所有分类</option>
+                <!-- 动态加载分类选项 -->
+              </select>
+              <label style="display: flex; align-items: center; gap: 6px">
+                <input
+                  type="checkbox"
+                  id="zeroStockOnly"
+                  onchange="handleFilter()"
+                />
+                仅看缺货
+              </label>
+              <label style="display: flex; align-items: center; gap: 6px">
+                <input
+                  type="checkbox"
+                  id="lowStockOnly"
+                  onchange="handleFilter()"
+                />
+                仅看低库存
+              </label>
+            </div>
+            <div>
+              <button class="btn btn-secondary" onclick="refreshInventory()">
+                刷新
+              </button>
+              <button class="btn btn-primary" onclick="exportCSV()">
+                导出当前页
+              </button>
+            </div>
+          </div>
+
+          <!-- 预警统计条 -->
+          <div class="action-bar" style="margin-top: -10px">
+            <div
+              style="
+                display: flex;
+                gap: 16px;
+                align-items: center;
+                flex-wrap: wrap;
+              "
+            >
+              <span>库存预警：</span>
+              <span
+                class="status-badge badge-zero"
+                id="zeroCountBadge"
+                onclick="quickFilter('zero')"
+                style="cursor: pointer"
+                >零库存 0</span
+              >
+              <span
+                class="status-badge badge-low"
+                id="lowCountBadge"
+                onclick="quickFilter('low')"
+                style="cursor: pointer"
+                >低库存 0</span
+              >
+            </div>
+            <div class="page-info">
+              <span id="summaryText"></span>
+            </div>
+          </div>
+
+          <!-- 数据表格 -->
+          <div class="table-container">
+            <table class="data-table" id="inventoryTable">
+              <thead>
+                <tr>
+                  <th>商品编码</th>
+                  <th>商品名称</th>
+                  <th>分类</th>
+                  <th>品牌</th>
+                  <th>单位</th>
+                  <th>现库存</th>
+                  <th>状态/预警</th>
+                  <th>最近更新时间</th>
+                  <th>备注</th>
+                </tr>
+              </thead>
+              <tbody id="inventoryTableBody">
+                <!-- 数据将通过JavaScript动态加载 -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 分页控件 -->
+          <div class="pagination-container">
+            <div class="page-info">
+              <span id="pageInfo">共 0 条记录</span>
+            </div>
+            <div class="pagination" id="pagination">
+              <!-- 分页按钮将通过JavaScript动态生成 -->
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+    <script>
+      // 全局状态
+      let currentPage = 1;
+      let pageSize = 10;
+      let searchQuery = "";
+      let categoryFilterValue = "";
+      let zeroStockOnly = false;
+      let lowStockOnly = false;
+      let inventoryData = [];
+
+      // 页面初始化
+      document.addEventListener("DOMContentLoaded", function () {
+        initCommonPage("inventory");
+        loadCategories();
+        loadAlerts();
+        loadInventory();
+      });
+
+      async function loadCategories() {
+        try {
+          const res = await fetch("/api/products/categories", {
+            headers: {
+              Authorization: "Bearer " + localStorage.getItem("token"),
+            },
+          });
+          const data = await res.json();
+          if (data.success) {
+            const sel = document.getElementById("categoryFilter");
+            sel.innerHTML =
+              '<option value="">所有分类</option>' +
+              (data.data || [])
+                .map((cat) => `<option value="${cat}">${cat}</option>`)
+                .join("");
+          }
+        } catch (e) {
+          console.error("加载分类失败", e);
+        }
+      }
+
+      async function loadAlerts() {
+        try {
+          const res = await fetch("/api/inventory/alerts", {
+            headers: {
+              Authorization: "Bearer " + localStorage.getItem("token"),
+            },
+          });
+          const data = await res.json();
+          if (data.success) {
+            const zero = data.data.zero_stock_count || 0;
+            const low = data.data.low_stock_count || 0;
+            document.getElementById(
+              "zeroCountBadge"
+            ).textContent = `零库存 ${zero}`;
+            document.getElementById(
+              "lowCountBadge"
+            ).textContent = `低库存 ${low}`;
+          }
+        } catch (e) {
+          console.error("加载库存预警失败", e);
+        }
+      }
+
+      async function loadInventory(page = currentPage) {
+        currentPage = page;
+        const tbody = document.getElementById("inventoryTableBody");
+        showLoading(tbody);
+
+        // 互斥：同时只启用一个预警筛选
+        if (zeroStockOnly && lowStockOnly) {
+          // 若都选，则优先零库存
+          lowStockOnly = false;
+          document.getElementById("lowStockOnly").checked = false;
+        }
+
+        const params = new URLSearchParams();
+        params.set("page", currentPage);
+        params.set("size", pageSize);
+        if (searchQuery) params.set("search", searchQuery);
+        if (categoryFilterValue) params.set("category", categoryFilterValue);
+        if (zeroStockOnly) params.set("zero_stock", "true");
+        if (lowStockOnly) params.set("low_stock", "true");
+
+        try {
+          const res = await fetch(`/api/inventory?${params.toString()}`, {
+            headers: {
+              Authorization: "Bearer " + localStorage.getItem("token"),
+            },
+          });
+          const data = await res.json();
+          if (!data.success) throw new Error(data.message || "加载失败");
+
+          inventoryData = data.data || [];
+          renderTable(inventoryData);
+          renderPagination(
+            data.pagination || { page: 1, total_pages: 1, total: 0 }
+          );
+          document.getElementById(
+            "pageInfo"
+          ).textContent = `共 ${data.pagination.total} 条记录`;
+          document.getElementById(
+            "summaryText"
+          ).textContent = `第 ${data.pagination.page} / ${data.pagination.total_pages} 页`;
+        } catch (e) {
+          console.error(e);
+          showError(
+            "加载库存数据失败",
+            document.querySelector(".table-container")
+          );
+        }
+      }
+
+      function renderTable(rows) {
+        const tbody = document.getElementById("inventoryTableBody");
+        if (!rows || rows.length === 0) {
+          tbody.innerHTML =
+            '<tr><td colspan="9" class="text-center">暂无数据</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = rows
+          .map((item) => {
+            const qty = item.quantity || 0;
+            let badge = '<span class="status-badge badge-normal">正常</span>';
+            if (qty === 0)
+              badge = '<span class="status-badge badge-zero">缺货</span>';
+            else if (qty > 0 && qty <= 10)
+              badge = '<span class="status-badge badge-low">低库存</span>';
+
+            return `
+              <tr>
+                <td>${item.code || "-"}</td>
+                <td>${item.name || "-"}</td>
+                <td>${item.category || "-"}</td>
+                <td>${item.brand || "-"}</td>
+                <td>${item.unit || "件"}</td>
+                <td>${qty}</td>
+                <td>${badge}</td>
+                <td>${item.updated_at || "-"}</td>
+                <td>${item.inventory_remark || ""}</td>
+              </tr>
+            `;
+          })
+          .join("");
+      }
+
+      function renderPagination(p) {
+        const container = document.getElementById("pagination");
+        const { page, total_pages } = p || { page: 1, total_pages: 1 };
+        const btns = [];
+        const addBtn = (label, target, disabled = false, active = false) => {
+          btns.push(
+            `<button class="page-btn ${active ? "active" : ""}" ${
+              disabled ? "disabled" : ""
+            } onclick="gotoPage(${target})">${label}</button>`
+          );
+        };
+        addBtn("上一页", Math.max(1, page - 1), page <= 1);
+        for (let i = 1; i <= total_pages; i++) {
+          if (i === 1 || i === total_pages || Math.abs(i - page) <= 2) {
+            addBtn(i, i, false, i === page);
+          } else if (i === page - 3 || i === page + 3) {
+            btns.push(`<span style="padding:0 6px;">...</span>`);
+          }
+        }
+        addBtn(
+          "下一页",
+          Math.min(total_pages || 1, page + 1),
+          page >= total_pages
+        );
+        container.innerHTML = btns.join("");
+      }
+
+      function gotoPage(p) {
+        loadInventory(p);
+      }
+
+      // 交互处理
+      function handleSearch() {
+        searchQuery = document.getElementById("searchInput").value.trim();
+        currentPage = 1;
+        loadInventory();
+      }
+
+      function handleFilter() {
+        categoryFilterValue = document.getElementById("categoryFilter").value;
+        zeroStockOnly = document.getElementById("zeroStockOnly").checked;
+        lowStockOnly = document.getElementById("lowStockOnly").checked;
+        // 互斥控制
+        if (zeroStockOnly && lowStockOnly) {
+          // 优先零库存
+          lowStockOnly = false;
+          document.getElementById("lowStockOnly").checked = false;
+        }
+        currentPage = 1;
+        loadInventory();
+      }
+
+      function quickFilter(type) {
+        if (type === "zero") {
+          document.getElementById("zeroStockOnly").checked = true;
+          document.getElementById("lowStockOnly").checked = false;
+        } else if (type === "low") {
+          document.getElementById("zeroStockOnly").checked = false;
+          document.getElementById("lowStockOnly").checked = true;
+        }
+        handleFilter();
+      }
+
+      function refreshInventory() {
+        loadAlerts();
+        loadInventory(1);
+      }
+
+      function exportCSV() {
+        if (!inventoryData || inventoryData.length === 0) return;
+        const headers = [
+          "商品编码",
+          "商品名称",
+          "分类",
+          "品牌",
+          "单位",
+          "现库存",
+          "状态/预警",
+          "最近更新时间",
+          "备注",
+        ];
+        const lines = inventoryData.map((item) => {
+          const qty = item.quantity || 0;
+          let status = "正常";
+          if (qty === 0) status = "缺货";
+          else if (qty > 0 && qty <= 10) status = "低库存";
+          return [
+            item.code || "-",
+            item.name || "-",
+            item.category || "-",
+            item.brand || "-",
+            item.unit || "件",
+            qty,
+            status,
+            item.updated_at || "-",
+            item.inventory_remark || "",
+          ]
+            .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+            .join(",");
+        });
+        const content = [headers.join(","), ...lines].join("\n");
+        const blob = new Blob(["\uFEFF" + content], {
+          type: "text/csv;charset=utf-8;",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `库存列表_第${currentPage}页.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    </script>
+  </body>
+</html>
